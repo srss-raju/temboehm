@@ -1,0 +1,10 @@
+{
+    "conn":
+            {
+                "host"     : "localhost",
+                "port"     : "5432", 
+                "database" : "deloitte_ims",
+                "user"     : "postgres",
+                "password" : "postgres"
+            }
+}

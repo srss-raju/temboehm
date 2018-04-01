@@ -65,35 +65,5 @@ class im_postgres:
         child = self.cur.fetchone()
         return child[0] if child else ''
 
-
-
-# conn.commit()
-
-# ==========================
-
-# cur.execute("SELECT vendor_id, vendor_name FROM vendors ORDER BY vendor_name")
-# print("The number of parts: ", cur.rowcount)
-
-# row = cur.fetchone()
-# while row is not None:
-#     print(row)
-#     row = cur.fetchone()
- 
-# ==========================
-# rows = cur.fetchall()
-
-# fetchmany()
-
-# ==========================
-# psycopg2.connect(database="testdb", user="postgres", password="postgres", host="127.0.0.1", port="5432")
-
-# cur.execute('''CREATE TABLE tyty (ID INT PRIMARY KEY  NOT NULL,  NAME TEXT  NOT NULL,  AGE  INT  NOT NULL,  ADDRESS  CHAR(50),  SALARY  REAL);''')
-
-
-
-#   ++++++++++++++
-# CREATE DATABASE dbname;
-# \l
-# \c testdb;
-
-# CREATE TABLE COMPANY (ID INT PRIMARY KEY     NOT NULL,   NAME TEXT    NOT NULL,   AGE            INT     NOT NULL,   ADDRESS        CHAR(50),   SALARY         REAL);
+    
+    

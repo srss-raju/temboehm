@@ -6,6 +6,7 @@ import json
 import requests
 
 import im_postgres_lib
+from im_corpus import corpus_options
 
 
 with open("config.json") as f:
@@ -48,57 +49,85 @@ def handle_sending_data_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
     # emit('my response', {'data': "%d words"%(len(msg.split()))}, broadcast=True)
 
+    process_message(msg)
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+def process_message(msg):
+    if msg['id']:
+        process_message_with_id(msg)
+    else:
+        process_message_without_id(msg)
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+def process_message_with_id(msg):
+    msg_id = msg['id']
     obj = None
 
-    if msg['id']:
-        msg_id = msg['id']
+    tbl_name = 'ims_master'
+    for i in str(msg_id):
+        tbl_name = db.Get_Child(tbl_name, i)
 
-        tbl_name = 'ims_master'
-        for i in str(msg_id):
-            tbl_name = db.Get_Child(tbl_name, i)
+    if tbl_name:
+        metadata = db.Get_RowFirst('%s_meta'%tbl_name)
+        data = db.Get_RowsAll(tbl_name)
+        obj = make_obj(metadata, data, msg_id)
+        emit('message', obj)
+    else:
+        if msg_id == '4':
+            obj_incident = {
+                            'description' : msg['text'],
+                            'priority'    : 1
+                            }
+            incident_num = incident_create(obj_incident)
 
-        if tbl_name:
-            metadata = db.Get_RowFirst('%s_meta'%tbl_name)
-            data = db.Get_RowsAll(tbl_name)
-            obj = make_obj(metadata, data, msg_id)
+            obj = {
+                    'from'  : 'bot',
+                    'type'  : 'text',
+                    'text'  : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
+                              if incident_num\
+                              else "Sorry. Couldn't create incident for your problem due to some issue with server"
+                    }
             emit('message', obj)
-        else:
-            if msg['id'] == '4':
-                obj_incident = {
-                                'description' : msg['text'],
-                                'priority'    : 1
-                                }
-                incident_num = incident_create(obj_incident)
 
-                obj = {
-                        'from'  : 'bot',
-                        'type'  : 'text',
-                        'text'  : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
-                                  if incident_num\
-                                  else "Sorry. Couldn't create incident for your problem due to some issue with server"
-                        }
-                emit('message', obj)
+        elif msg_id == '5':
+            id_incident = msg['text']
+            res = incident_status(id_incident)
 
-            elif msg['id'] == '5':
-                id_incident = msg['text']
-                res = incident_status(id_incident)
+            obj = {
+                    'from'  : 'bot',
+                    'type'  : 'text',
+                    'text'  : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
+                                if res\
+                                else "Sorry. Couldn't get the state of your incident due to some issue with server"
+                    }
+            emit('message', obj)
 
-                obj = {
-                        'from'  : 'bot',
-                        'type'  : 'text',
-                        'text'  : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
-                                    if res\
-                                    else "Sorry. Couldn't get the state of your incident due to some issue with server"
-                        }
-                emit('message', obj)
+    print "SERVER:: Sent message:\n", obj
 
-    elif msg['text'] =='hi':
+
+#-----------------------------------------------------------------------------------------------------------------------
+def process_message_without_id(msg):
+    msg_text = msg['text'].strip()
+    obj = None
+
+    if msg_text in corpus_options['option_incident_create']:
+        msg['id'] = 1
+        process_message_with_id(msg)
+
+    elif msg_text in corpus_options['option_incident_enquiry']:
+        msg['id'] = 2
+        process_message_with_id(msg)
+
+    elif msg_text == 'hi':
         obj = {
                 'from'  : 'bot',
                 'type'  : 'text',
                 'text'  : "Hello",
                 }
         emit('message', obj)
+
     else:
         obj = {
                 'from'  : 'bot',

@@ -30,7 +30,7 @@ def login():
         form = request.form
 
         # Extract the form data
-        user_name = form.get('user_name')
+        user_name = form.get('username')
         password  = form.get('password')
 
         data = db.Get_RowsMatching('ims_users', 'user_name', user_name)

@@ -60,10 +60,20 @@ class im_postgres:
         return self.cur.fetchone()
 
     #-------------------------------------------------------------------------------------------------------------------
+    def Get_RowsMatching(self, table, field, value):
+        value = "'%s'"%value if type(value) in (str, unicode) else value
+        self.cur.execute("SELECT * FROM {table_name} WHERE {fld}={val}".format(table_name=table, fld=field, val=value))
+        return self.cur.fetchone()
+
+    #-------------------------------------------------------------------------------------------------------------------
     def Get_Child(self, table, id):
         self.cur.execute("SELECT child FROM {table_name} WHERE id={id}".format(table_name=table, id=id))
         child = self.cur.fetchone()
         return child[0] if child else ''
 
+    #-------------------------------------------------------------------------------------------------------------------
+    def Update_Table(self, table, field, value, where_cond):
+        self.cur.execute("UPDATE {table_name} SET {fld}={val} WHERE {where_cond}".format(table_name=table, fld=field, val=value, where_cond=where_cond))
+        self.conn.commit()
     
     

@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from flask import Flask
+from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
 import json
 import requests
+import random
 
 import im_postgres_lib
 from im_corpus import corpus_options
@@ -20,7 +21,32 @@ if not db.isConnected():
 app = Flask(__name__)
 socketio = SocketIO(app)
 
-    
+
+#-----------------------------------------------------------------------------------------------------------------------
+@app.route('/login', methods=['POST'])
+def login():
+    if request.method == 'POST':
+        # Get the form
+        form = request.form
+
+        # Extract the form data
+        user_name = form.get('user_name')
+        password  = form.get('password')
+
+        data = db.Get_RowsMatching('ims_users', 'user_name', user_name)
+        _password = data[1]
+
+        if password == _password:
+            otp = random.randint(1000, 9999)
+            db.Update_Table('ims_users', 'otp', otp, "user_name='%s'"%user_name)
+            print "SERVER:: User authentication SUCCESSFUL\n\n"
+            return str(otp)
+
+        else:
+            print "SERVER:: User authentication FAILED\n\n"
+            return ''
+
+
 #-----------------------------------------------------------------------------------------------------------------------
 @socketio.on('connect')
 def connect():
@@ -32,7 +58,7 @@ def connect():
     obj = make_obj(metadata, data, 0)
 
     emit('message', obj)
-    print "SERVER:: Sent message:\n", obj
+    print "SERVER:: Sent message:\n", obj, "\n"
 
     # return True
 
@@ -104,7 +130,7 @@ def process_message_with_id(msg):
                     }
             emit('message', obj)
 
-    print "SERVER:: Sent message:\n", obj
+    print "SERVER:: Sent message:\n", obj, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -136,7 +162,7 @@ def process_message_without_id(msg):
                 }
         emit('message', obj)
 
-    print "SERVER:: Sent message:\n", obj
+    print "SERVER:: Sent message:\n", obj, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------

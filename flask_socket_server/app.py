@@ -40,6 +40,15 @@ def login():
             otp = random.randint(1000, 9999)
             db.Update_Table('ims_users', 'otp', otp, "user_name='%s'"%user_name)
             print "SERVER:: User authentication SUCCESSFUL\n\n"
+
+            obj = {
+                    'from'      : "bot",
+                    'type'      : "text",
+                    'text'      : "Please enter the code you received or type 'quit' to end",
+                    'ftr_id'    : 0
+                    }
+            emit('message', obj)
+
             return str(otp)
 
         else:
@@ -53,9 +62,17 @@ def connect():
     print "SERVER:: Connection request received"
     # emit('my response', {'data': 'Client Connected'})
 
-    metadata = db.Get_RowFirst('ims_master_meta')
-    data = db.Get_RowsAll('ims_master')
-    obj = make_obj(metadata, data, 0)
+    obj = {
+            'from'      : "bot",
+            'type'      : "mandatory-action",
+            'text'      : "Please click this link to signin first",
+            'options'   : [
+                            {
+                                'id'    : 0,
+                                'name'  : 'signin'
+                            }
+                          ]
+          }
 
     emit('message', obj)
     print "SERVER:: Sent message:\n", obj, "\n"
@@ -80,10 +97,36 @@ def handle_sending_data_event(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message(msg):
-    if msg['id']:
+    if msg['ftr_id']:
+        process_message_with_ftrid(msg)
+    elif msg['id']:
         process_message_with_id(msg)
     else:
-        process_message_without_id(msg)
+        process_message_freetext(msg)
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+def process_message_with_ftrid(msg):
+    if msg['ftr_id'] == 0:
+        otp = msg['text']
+
+        data = db.Get_RowsMatching('ims_users', 'otp', otp)
+        _username = data[0]
+
+        print "SERVER:: User logged in\n\n"
+
+        obj = {
+                'from'  : 'bot',
+                'type'  : 'text',
+                'text'  : "Welcome, {username}! You are now logged in".format(username=_username)
+                }
+        emit('message', obj)
+
+        metadata = db.Get_RowFirst('ims_master_meta')
+        data = db.Get_RowsAll('ims_master')
+        obj2 = make_obj(metadata, data, 0)
+
+        emit('message', obj2)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -134,7 +177,7 @@ def process_message_with_id(msg):
 
 
 #-----------------------------------------------------------------------------------------------------------------------
-def process_message_without_id(msg):
+def process_message_freetext(msg):
     msg_text = msg['text'].strip()
     obj = None
 

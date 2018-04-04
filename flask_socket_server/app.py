@@ -153,7 +153,7 @@ def process_message_with_id(msg):
                     }
             emit('message', obj)
 
-        elif msg_id == 0:
+        elif msg_id == '0':
             otp = msg['text']
 
             data = db.Get_RowsMatching('ims_users', 'otp', otp)
@@ -174,7 +174,7 @@ def process_message_with_id(msg):
 
             emit('message', obj2)
 
-        elif msg_id == 9999:
+        elif msg_id == '9999':
             pass
 
 

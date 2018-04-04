@@ -25,13 +25,19 @@ socketio = SocketIO(app)
 #-----------------------------------------------------------------------------------------------------------------------
 @app.route('/login', methods=['POST'])
 def login():
+    print request.data
+    # print request.headers
+
     if request.method == 'POST':
         # Get the form
-        form = request.form
+        data = eval(request.get_data())
 
         # Extract the form data
-        user_name = form.get('username')
-        password  = form.get('password')
+        user_name = data.get('username')
+        password  = data.get('password')
+
+        # print user_name
+        # print password
 
         data = db.Get_RowsMatching('ims_users', 'user_name', user_name)
         _password = data[1]
@@ -40,14 +46,6 @@ def login():
             otp = random.randint(1000, 9999)
             db.Update_Table('ims_users', 'otp', otp, "user_name='%s'"%user_name)
             print "SERVER:: User authentication SUCCESSFUL\n\n"
-
-            obj = {
-                    'from'      : "bot",
-                    'type'      : "text",
-                    'text'      : "Please enter the code you received or type 'quit' to end",
-                    'ftr_id'    : 0
-                    }
-            emit('message', obj)
 
             return str(otp)
 
@@ -66,6 +64,7 @@ def connect():
             'from'      : "bot",
             'type'      : "mandatory-action",
             'text'      : "Please click this link to signin first",
+            'ftr_id'    : 0,
             'options'   : [
                             {
                                 'id'    : 0,

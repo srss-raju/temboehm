@@ -183,7 +183,7 @@ def process_message_with_id(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message_freetext(msg):
-    msg_text = msg['text'].strip()
+    msg_text = msg['text'].strip().lower()
     obj = None
 
     if msg_text in corpus_options['option_incident_create']:
@@ -192,6 +192,26 @@ def process_message_freetext(msg):
 
     elif msg_text in corpus_options['option_incident_enquiry']:
         msg['id'] = 2
+        process_message_with_id(msg)
+
+    elif 'access' in msg_text:
+        msg['id'] = 31
+        process_message_with_id(msg)
+
+    elif 'software' in msg_text:
+        msg['id'] = 32
+        process_message_with_id(msg)
+
+    elif 'hardware' in msg_text:
+        msg['id'] = 33
+        process_message_with_id(msg)
+
+    elif 'network' in msg_text:
+        msg['id'] = 34
+        process_message_with_id(msg)
+
+    elif 'server' in msg_text:
+        msg['id'] = 35
         process_message_with_id(msg)
 
     elif msg_text == 'hi':

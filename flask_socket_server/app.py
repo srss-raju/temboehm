@@ -193,6 +193,16 @@ def process_message_with_id(msg):
 
             emit('message', obj)
 
+        else:
+            obj = {
+                    'from'  : 'bot',
+                    'type'  : 'text',
+                    'text'  : 'Please use this link to get information on this: https://innominds.com/%s'%('_'.join(msg['text'].split()))
+                    }
+
+            emit('message', obj)
+
+
     print "SERVER:: Sent message:\n", obj, "\n"
 
 

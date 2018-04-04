@@ -96,9 +96,9 @@ def handle_sending_data_event(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message(msg):
-    if msg['ftr_id']:
-        process_message_with_ftrid(msg)
-    elif msg['id']:
+    # if msg['ftr_id']:
+    #     process_message_with_ftrid(msg)
+    if msg['id']:
         process_message_with_id(msg)
     else:
         process_message_freetext(msg)
@@ -106,26 +106,7 @@ def process_message(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message_with_ftrid(msg):
-    if msg['ftr_id'] == 0:
-        otp = msg['text']
-
-        data = db.Get_RowsMatching('ims_users', 'otp', otp)
-        _username = data[0]
-
-        print "SERVER:: User logged in\n\n"
-
-        obj = {
-                'from'  : 'bot',
-                'type'  : 'text',
-                'text'  : "Welcome, {username}! You are now logged in".format(username=_username)
-                }
-        emit('message', obj)
-
-        metadata = db.Get_RowFirst('ims_master_meta')
-        data = db.Get_RowsAll('ims_master')
-        obj2 = make_obj(metadata, data, 0)
-
-        emit('message', obj2)
+    pass
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -171,6 +152,31 @@ def process_message_with_id(msg):
                                 else "Sorry. Couldn't get the state of your incident due to some issue with server"
                     }
             emit('message', obj)
+
+        elif msg_id == 0:
+            otp = msg['text']
+
+            data = db.Get_RowsMatching('ims_users', 'otp', otp)
+            _username = data[0]
+
+            print "SERVER:: User logged in\n\n"
+
+            obj = {
+                    'from'  : 'bot',
+                    'type'  : 'text',
+                    'text'  : "Welcome, {username}! You are now logged in".format(username=_username)
+                    }
+            emit('message', obj)
+
+            metadata = db.Get_RowFirst('ims_master_meta')
+            data = db.Get_RowsAll('ims_master')
+            obj2 = make_obj(metadata, data, 0)
+
+            emit('message', obj2)
+
+        elif msg_id == 9999:
+            pass
+
 
     print "SERVER:: Sent message:\n", obj, "\n"
 

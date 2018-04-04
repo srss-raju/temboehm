@@ -9,6 +9,8 @@ corpus_options = \
             'there is an issue',
             'create a ticket',
             'create an incident',
+            'Accounting tool has problem',
+            'SAP application is not up',
         ],
 
     'option_incident_enquiry' : \

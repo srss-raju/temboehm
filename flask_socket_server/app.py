@@ -117,6 +117,8 @@ def process_message_with_id(msg):
     tbl_name = 'ims_master'
     for i in str(msg_id):
         tbl_name = db.Get_Child(tbl_name, i)
+        if not tbl_name:
+            break
 
     if tbl_name:
         metadata = db.Get_RowFirst('%s_meta'%tbl_name)
@@ -175,8 +177,21 @@ def process_message_with_id(msg):
             emit('message', obj2)
 
         elif msg_id == '9999':
-            pass
+            msg_text = msg['text']
+            obj = {
+                    'from'  : 'bot',
+                    'type'  : 'text',
+                    'text'  : ''
+                    }
 
+            if msg_text in ['Terrible', 'Bad']:
+                obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will stive to improve your experience with us"
+            if msg_text in ['Okay', 'Good']:
+                obj['text'] = "Thanks for you feedback. We will improve ourself to serve you better"
+            elif msg_text == 'Great':
+                obj['text'] = "Thanks for you feedback. We are happy that we could give you a good experience"
+
+            emit('message', obj)
 
     print "SERVER:: Sent message:\n", obj, "\n"
 
@@ -226,7 +241,7 @@ def process_message_freetext(msg):
         obj = {
                 'from'  : 'bot',
                 'type'  : 'text',
-                'text'  : "I'm sorry. I don't think I've understood your querry. Please write an email to chatbot@innominds.com for more help. Thank you",
+                'text'  : "I'm sorry. I don't think I've understood your query. Please write an email to chatbot@innominds.com for more help. Thank you",
                 }
         emit('message', obj)
 

@@ -22,11 +22,29 @@ app = Flask(__name__)
 socketio = SocketIO(app)
 
 
+class UserSession:
+    def __init__(self, sid, username):
+        self._sid          = sid
+        self._username     = username
+        self._chat_history = []
+
+    def update_chat(self, msg):
+        self._chat_history.append(msg)
+
+    def get_username(self):
+        return self._username
+
+    def get_chat_history(self):
+        return str(' ## '.join(self._chat_history))
+
+
+Table_UserSessions = {}
+
+
 #-----------------------------------------------------------------------------------------------------------------------
 @app.route('/login', methods=['POST'])
 def login():
-    print request.data
-    # print request.headers
+    # print request.data
 
     if request.method == 'POST':
         # Get the form
@@ -35,9 +53,6 @@ def login():
         # Extract the form data
         user_name = data.get('username')
         password  = data.get('password')
-
-        # print user_name
-        # print password
 
         data = db.Get_RowsMatching('ims_users', 'user_name', user_name)
         _password = data[1]
@@ -96,17 +111,10 @@ def handle_sending_data_event(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message(msg):
-    # if msg['ftr_id']:
-    #     process_message_with_ftrid(msg)
     if msg['id']:
         process_message_with_id(msg)
     else:
         process_message_freetext(msg)
-
-
-#-----------------------------------------------------------------------------------------------------------------------
-def process_message_with_ftrid(msg):
-    pass
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -159,22 +167,34 @@ def process_message_with_id(msg):
             otp = msg['text']
 
             data = db.Get_RowsMatching('ims_users', 'otp', otp)
-            _username = data[0]
+            if data:
+                _username = data[0]
 
-            print "SERVER:: User logged in\n\n"
+                print "SERVER:: User logged in\n\n"
 
-            obj = {
-                    'from'  : 'bot',
-                    'type'  : 'text',
-                    'text'  : "Welcome, {username}! You are now logged in".format(username=_username)
-                    }
-            emit('message', obj)
+                obj = {
+                        'from'  : 'bot',
+                        'type'  : 'text',
+                        'text'  : "Welcome, {username}! You are now logged in".format(username=_username)
+                        }
+                emit('message', obj)
 
-            metadata = db.Get_RowFirst('ims_master_meta')
-            data = db.Get_RowsAll('ims_master')
-            obj2 = make_obj(metadata, data, 0)
+                metadata = db.Get_RowFirst('ims_master_meta')
+                data = db.Get_RowsAll('ims_master')
+                obj2 = make_obj(metadata, data, 0)
 
-            emit('message', obj2)
+                emit('message', obj2)
+
+                Table_UserSessions[request.sid] = UserSession(request.sid, _username)
+
+            else:
+                print "SERVER:: ERROR : User login FAILED\n\n"
+                obj = {
+                        'from'  : 'bot',
+                        'type'  : 'text',
+                        'text'  : "Oops! I'm sorry. The code you entered is incorrect."
+                        }
+                emit('message', obj)
 
         elif msg_id == '9999':
             msg_text = msg['text']
@@ -185,13 +205,18 @@ def process_message_with_id(msg):
                     }
 
             if msg_text in ['Terrible', 'Bad']:
-                obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will stive to improve your experience with us"
+                obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will strive to improve your experience with us"
             if msg_text in ['Okay', 'Good']:
                 obj['text'] = "Thanks for you feedback. We will improve ourself to serve you better"
             elif msg_text == 'Great':
                 obj['text'] = "Thanks for you feedback. We are happy that we could give you a good experience"
 
             emit('message', obj)
+
+            if request.sid in Table_UserSessions:
+                chat_history = Table_UserSessions[request.sid].get_chat_history()
+                user_name = Table_UserSessions[request.sid].get_username()
+                db.InsertInto_Table('ims_user_chat', ('user_name', 'chat_text', 'chat_end_time', 'feedback'), (user_name, chat_history, 'now', str(msg_text)))
 
         else:
             obj = {
@@ -210,6 +235,10 @@ def process_message_with_id(msg):
 def process_message_freetext(msg):
     msg_text = msg['text'].strip().lower()
     obj = None
+
+    if request.sid in Table_UserSessions:
+        Table_UserSessions[request.sid].update_chat(msg['text'])
+
 
     if msg_text in corpus_options['option_incident_create']:
         msg['id'] = 1

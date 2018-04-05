@@ -76,4 +76,11 @@ class im_postgres:
         self.cur.execute("UPDATE {table_name} SET {fld}={val} WHERE {where_cond}".format(table_name=table, fld=field, val=value, where_cond=where_cond))
         self.conn.commit()
     
+    #-------------------------------------------------------------------------------------------------------------------
+    def InsertInto_Table(self, table, fields, values):
+        fields = '(' + ', '.join(fields) + ')'
+        cmd = "INSERT INTO {table_name} {flds} VALUES {vals}".format(table_name=table, flds=fields, vals=values)
+        self.cur.execute(cmd)
+        self.conn.commit()
+    
     

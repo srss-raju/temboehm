@@ -212,9 +212,10 @@ def process_message_with_id(msg):
 
                 metadata = db.Get_RowFirst('ims_master_meta')
                 data = db.Get_RowsAll('ims_master')
-                obj2 = make_obj(metadata, data, 0)
+                obj2 = make_obj(metadata+(otp,), data, 0)
 
                 emit('message', obj2)
+                print "SERVER:: Sent message:\n", obj2, "\n"
 
                 Table_UserSessions[request.sid] = UserSession(request.sid, _username, otp)
 

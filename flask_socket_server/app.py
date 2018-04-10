@@ -27,6 +27,7 @@ class UserSession:
         self._sid          = sid
         self._username     = username
         self._chat_history = []
+        self._active       = True
 
     def update_chat(self, msg):
         self._chat_history.append(msg)
@@ -36,6 +37,12 @@ class UserSession:
 
     def get_chat_history(self):
         return str(' ## '.join(self._chat_history))
+
+    def isActive(self):
+        return self._active
+
+    def invalidate(self):
+        self._active = False
 
 
 Table_UserSessions = {}
@@ -106,7 +113,24 @@ def handle_sending_data_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
     # emit('my response', {'data': "%d words"%(len(msg.split()))}, broadcast=True)
 
-    process_message(msg)
+    if request.sid in Table_UserSessions and not Table_UserSessions[request.sid].isActive():
+        obj = {
+                'from'      : "bot",
+                'type'      : "mandatory-action",
+                'text'      : "Please click this link to signin first",
+                'options'   : [
+                                {
+                                    'id'    : 0,
+                                    'name'  : 'signin'
+                                }
+                              ]
+              }
+
+        emit('message', obj)
+        print "SERVER:: Sent message:\n", obj, "\n"
+
+    else:
+        process_message(msg)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -195,6 +219,10 @@ def process_message_with_id(msg):
                         'text'  : "Oops! I'm sorry. The code you entered is incorrect."
                         }
                 emit('message', obj)
+
+        elif msg_id == -1:
+            if request.sid in Table_UserSessions:
+                Table_UserSessions[request.sid].invalidate()
 
         elif msg_id == '9999':
             msg_text = msg['text']

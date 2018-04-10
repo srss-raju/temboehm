@@ -23,11 +23,12 @@ socketio = SocketIO(app)
 
 
 class UserSession:
-    def __init__(self, sid, username):
+    def __init__(self, sid, username, otp):
         self._sid          = sid
         self._username     = username
         self._chat_history = []
         self._active       = True
+        self.otp           = otp
 
     def update_chat(self, msg):
         self._chat_history.append(msg)
@@ -86,7 +87,7 @@ def connect():
             'from'      : "bot",
             'type'      : "mandatory-action",
             'text'      : "Please click this link to signin first",
-            'ftr_id'    : 0,
+            'idToken'   : None,
             'options'   : [
                             {
                                 'id'    : 0,
@@ -119,6 +120,7 @@ def handle_sending_data_event(msg):
                     'from'      : "bot",
                     'type'      : "mandatory-action",
                     'text'      : "Please click this link to signin first",
+                    'idToken'   : None,
                     'options'   : [
                                     {
                                         'id'    : 0,
@@ -146,6 +148,7 @@ def process_message(msg):
 def process_message_with_id(msg):
     msg_id = msg['id']
     obj = None
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) else None
 
     tbl_name = 'ims_master'
     for i in str(msg_id):
@@ -156,7 +159,7 @@ def process_message_with_id(msg):
     if tbl_name:
         metadata = db.Get_RowFirst('%s_meta'%tbl_name)
         data = db.Get_RowsAll(tbl_name)
-        obj = make_obj(metadata, data, msg_id)
+        obj = make_obj(metadata+(OTP,), data, msg_id)
         emit('message', obj)
     else:
         if msg_id == '4':
@@ -167,11 +170,12 @@ def process_message_with_id(msg):
             incident_num = incident_create(obj_incident)
 
             obj = {
-                    'from'  : 'bot',
-                    'type'  : 'text',
-                    'text'  : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
-                              if incident_num\
-                              else "Sorry. Couldn't create incident for your problem due to some issue with server"
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
+                                  if incident_num\
+                                  else "Sorry. Couldn't create incident for your problem due to some issue with server",
+                    'idToken'   : OTP,
                     }
             emit('message', obj)
 
@@ -180,11 +184,12 @@ def process_message_with_id(msg):
             res = incident_status(id_incident)
 
             obj = {
-                    'from'  : 'bot',
-                    'type'  : 'text',
-                    'text'  : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
-                                if res\
-                                else "Sorry. Couldn't get the state of your incident due to some issue with server"
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
+                                    if res\
+                                    else "Sorry. Couldn't get the state of your incident due to some issue with server",
+                    'idToken'   : OTP,
                     }
             emit('message', obj)
 
@@ -211,14 +216,15 @@ def process_message_with_id(msg):
 
                 emit('message', obj2)
 
-                Table_UserSessions[request.sid] = UserSession(request.sid, _username)
+                Table_UserSessions[request.sid] = UserSession(request.sid, _username, otp)
 
             else:
                 print "SERVER:: ERROR : User login FAILED\n\n"
                 obj = {
-                        'from'  : 'bot',
-                        'type'  : 'text',
-                        'text'  : "Oops! I'm sorry. The code you entered is incorrect."
+                        'from'      : 'bot',
+                        'type'      : 'text',
+                        'text'      : "Oops! I'm sorry. The code you entered is incorrect.",
+                        'idToken'   : None
                         }
                 emit('message', obj)
 
@@ -229,9 +235,10 @@ def process_message_with_id(msg):
         elif msg_id == '9999':
             msg_text = msg['text']
             obj = {
-                    'from'  : 'bot',
-                    'type'  : 'text',
-                    'text'  : ''
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : '',
+                    'idToken'   : OTP,
                     }
 
             if msg_text in ['Terrible', 'Bad']:
@@ -250,9 +257,10 @@ def process_message_with_id(msg):
 
         else:
             obj = {
-                    'from'  : 'bot',
-                    'type'  : 'text',
-                    'text'  : 'Please use this link to get information on this: https://innominds.com/%s'%('_'.join(msg['text'].split()))
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : 'Please use this link to get information on this: https://innominds.com/%s'%('_'.join(msg['text'].split())),
+                    'idToken'   : OTP,
                     }
 
             emit('message', obj)
@@ -265,6 +273,7 @@ def process_message_with_id(msg):
 def process_message_freetext(msg):
     msg_text = msg['text'].strip().lower()
     obj = None
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) else None
 
     if request.sid in Table_UserSessions:
         Table_UserSessions[request.sid].update_chat(msg['text'])
@@ -300,17 +309,19 @@ def process_message_freetext(msg):
 
     elif msg_text == 'hi':
         obj = {
-                'from'  : 'bot',
-                'type'  : 'text',
-                'text'  : "Hello",
+                'from'      : 'bot',
+                'type'      : 'text',
+                'text'      : "Hello",
+                'idToken'   : OTP
                 }
         emit('message', obj)
 
     else:
         obj = {
-                'from'  : 'bot',
-                'type'  : 'text',
-                'text'  : "I'm sorry. I don't think I've understood your query. Please write an email to chatbot@innominds.com for more help. Thank you",
+                'from'      : 'bot',
+                'type'      : 'text',
+                'text'      : "I'm sorry. I don't think I've understood your query. Please write an email to chatbot@innominds.com for more help. Thank you",
+                'idToken'   : OTP
                 }
         emit('message', obj)
 
@@ -363,7 +374,7 @@ def incident_status(id_incident):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def make_header(metadata):
-    return {i:j for i,j in zip(('from', 'type', 'text'), metadata)}
+    return {i:j for i,j in zip(('from', 'type', 'text', 'idToken'), metadata)}
 
 
 #-----------------------------------------------------------------------------------------------------------------------

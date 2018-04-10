@@ -220,7 +220,7 @@ def process_message_with_id(msg):
                         }
                 emit('message', obj)
 
-        elif msg_id == -1:
+        elif msg_id == '-1':
             if request.sid in Table_UserSessions:
                 Table_UserSessions[request.sid].invalidate()
 

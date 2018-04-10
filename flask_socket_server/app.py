@@ -113,21 +113,22 @@ def handle_sending_data_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
     # emit('my response', {'data': "%d words"%(len(msg.split()))}, broadcast=True)
 
-    if request.sid in Table_UserSessions and not Table_UserSessions[request.sid].isActive():
-        obj = {
-                'from'      : "bot",
-                'type'      : "mandatory-action",
-                'text'      : "Please click this link to signin first",
-                'options'   : [
-                                {
-                                    'id'    : 0,
-                                    'name'  : 'signin'
-                                }
-                              ]
-              }
+    if request.sid in Table_UserSessions\
+        and (not Table_UserSessions[request.sid].isActive() or not msg.get('idToken')):
+            obj = {
+                    'from'      : "bot",
+                    'type'      : "mandatory-action",
+                    'text'      : "Please click this link to signin first",
+                    'options'   : [
+                                    {
+                                        'id'    : 0,
+                                        'name'  : 'signin'
+                                    }
+                                  ]
+                  }
 
-        emit('message', obj)
-        print "SERVER:: Sent message:\n", obj, "\n"
+            emit('message', obj)
+            print "SERVER:: Sent message:\n", obj, "\n"
 
     else:
         process_message(msg)
@@ -197,9 +198,10 @@ def process_message_with_id(msg):
                 print "SERVER:: User logged in\n\n"
 
                 obj = {
-                        'from'  : 'bot',
-                        'type'  : 'text',
-                        'text'  : "Welcome, {username}! You are now logged in".format(username=_username)
+                        'from'      : 'bot',
+                        'type'      : 'text',
+                        'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
+                        'idToken'   : otp
                         }
                 emit('message', obj)
 

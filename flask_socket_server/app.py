@@ -24,11 +24,12 @@ socketio = SocketIO(app)
 
 class UserSession:
     def __init__(self, sid, username, otp):
-        self._sid          = sid
-        self._username     = username
-        self._chat_history = []
-        self._active       = True
-        self.otp           = otp
+        self._sid                   = sid
+        self._username              = username
+        self._chat_history          = []
+        self._active                = False
+        self.otp                    = otp
+        self.msg_waiting_for_login  = None
 
     def update_chat(self, msg):
         self._chat_history.append(msg)
@@ -44,6 +45,11 @@ class UserSession:
 
     def invalidate(self):
         self._active = False
+
+    def update_login_info(self, username, otp):
+        self._username  = username
+        self.otp        = otp
+        self._active    = True
 
 
 Table_UserSessions = {}
@@ -83,21 +89,14 @@ def connect():
     print "SERVER:: Connection request received"
     # emit('my response', {'data': 'Client Connected'})
 
-    obj = {
-            'from'      : "bot",
-            'type'      : "mandatory-action",
-            'text'      : "Please click this link to signin first",
-            'idToken'   : None,
-            'options'   : [
-                            {
-                                'id'    : 0,
-                                'name'  : 'signin'
-                            }
-                          ]
-          }
+    Table_UserSessions[request.sid] = UserSession(request.sid, None, None)
 
-    emit('message', obj)
-    print "SERVER:: Sent message:\n", obj, "\n"
+    metadata = db.Get_RowFirst('ims_master_meta')
+    data = db.Get_RowsAll('ims_master')
+    obj2 = make_obj(metadata+(None,), data, 0)
+
+    emit('message', obj2)
+    print "SERVER:: Sent message:\n", obj2, "\n"
 
     # return True
 
@@ -114,26 +113,7 @@ def handle_sending_data_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
     # emit('my response', {'data': "%d words"%(len(msg.split()))}, broadcast=True)
 
-    if request.sid in Table_UserSessions\
-        and (not Table_UserSessions[request.sid].isActive() or not msg.get('idToken')):
-            obj = {
-                    'from'      : "bot",
-                    'type'      : "mandatory-action",
-                    'text'      : "Please click this link to signin first",
-                    'idToken'   : None,
-                    'options'   : [
-                                    {
-                                        'id'    : 0,
-                                        'name'  : 'signin'
-                                    }
-                                  ]
-                  }
-
-            emit('message', obj)
-            print "SERVER:: Sent message:\n", obj, "\n"
-
-    else:
-        process_message(msg)
+    process_message(msg)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -163,35 +143,79 @@ def process_message_with_id(msg):
         emit('message', obj)
     else:
         if msg_id == '4':
-            obj_incident = {
-                            'description' : msg['text'],
-                            'priority'    : 1
-                            }
-            incident_num = incident_create(obj_incident)
+            if request.sid in Table_UserSessions\
+                and Table_UserSessions[request.sid].isActive()\
+                and msg.get('idToken'):
+                    obj_incident = {
+                                    'description' : msg['text'],
+                                    'priority'    : 1
+                                    }
+                    incident_num = incident_create(obj_incident)
 
-            obj = {
-                    'from'      : 'bot',
-                    'type'      : 'text',
-                    'text'      : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
-                                  if incident_num\
-                                  else "Sorry. Couldn't create incident for your problem due to some issue with server",
-                    'idToken'   : OTP,
-                    }
-            emit('message', obj)
+                    obj = {
+                            'from'      : 'bot',
+                            'type'      : 'text',
+                            'text'      : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
+                                          if incident_num\
+                                          else "Sorry. Couldn't create incident for your problem due to some issue with server",
+                            'idToken'   : OTP,
+                            }
+                    emit('message', obj)
+
+            else:
+                Table_UserSessions[request.sid].msg_waiting_for_login = msg
+
+                obj = {
+                        'from'      : "bot",
+                        'type'      : "mandatory-action",
+                        'text'      : "Please click this link to signin first",
+                        'idToken'   : None,
+                        'options'   : [
+                                        {
+                                            'id'    : 0,
+                                            'name'  : 'signin'
+                                        }
+                                      ]
+                      }
+
+                emit('message', obj)
+
 
         elif msg_id == '5':
-            id_incident = msg['text']
-            res = incident_status(id_incident)
+            if request.sid in Table_UserSessions\
+                and Table_UserSessions[request.sid].isActive()\
+                and msg.get('idToken'):
+                    id_incident = msg['text']
+                    res = incident_status(id_incident)
 
-            obj = {
-                    'from'      : 'bot',
-                    'type'      : 'text',
-                    'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
-                                    if res\
-                                    else "Sorry. Couldn't get the state of your incident due to some issue with server",
-                    'idToken'   : OTP,
-                    }
-            emit('message', obj)
+                    obj = {
+                            'from'      : 'bot',
+                            'type'      : 'text',
+                            'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
+                                            if res\
+                                            else "Sorry. Couldn't get the state of your incident due to some issue with server",
+                            'idToken'   : OTP,
+                            }
+                    emit('message', obj)
+
+            else:
+                Table_UserSessions[request.sid].msg_waiting_for_login = msg
+
+                obj = {
+                        'from'      : "bot",
+                        'type'      : "mandatory-action",
+                        'text'      : "Please click this link to signin first",
+                        'idToken'   : None,
+                        'options'   : [
+                                        {
+                                            'id'    : 0,
+                                            'name'  : 'signin'
+                                        }
+                                      ]
+                      }
+
+                emit('message', obj)
+
 
         elif msg_id == '0':
             otp = msg['text']
@@ -210,14 +234,13 @@ def process_message_with_id(msg):
                         }
                 emit('message', obj)
 
-                metadata = db.Get_RowFirst('ims_master_meta')
-                data = db.Get_RowsAll('ims_master')
-                obj2 = make_obj(metadata+(otp,), data, 0)
+                Table_UserSessions[request.sid].update_login_info(_username, otp)
 
-                emit('message', obj2)
-                print "SERVER:: Sent message:\n", obj2, "\n"
-
-                Table_UserSessions[request.sid] = UserSession(request.sid, _username, otp)
+                msg_waiting_for_login = Table_UserSessions[request.sid].msg_waiting_for_login
+                if msg_waiting_for_login:
+                    Table_UserSessions[request.sid].msg_waiting_for_login = None
+                    msg_waiting_for_login['idToken'] = otp
+                    process_message(msg_waiting_for_login)
 
             else:
                 print "SERVER:: ERROR : User login FAILED\n\n"

@@ -130,7 +130,7 @@ def process_message_with_id(msg):
     msg_id = msg['id']
     Table_UserSessions[request.sid].context_id = msg_id
     obj = None
-    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) else None
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
     tbl_name = 'ims_master'
     for i in str(msg_id):
@@ -299,7 +299,7 @@ def process_message_with_id(msg):
 def process_message_freetext(msg):
     msg_text = msg['text'].strip().lower()
     obj = None
-    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) else None
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
     if request.sid in Table_UserSessions:
         Table_UserSessions[request.sid].update_chat(msg['text'])

@@ -30,6 +30,7 @@ class UserSession:
         self._active                = False
         self.otp                    = otp
         self.msg_waiting_for_login  = None
+        self.context_id             = None
 
     def update_chat(self, msg):
         self._chat_history.append(msg)
@@ -127,6 +128,7 @@ def process_message(msg):
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message_with_id(msg):
     msg_id = msg['id']
+    Table_UserSessions[request.sid].context_id = msg_id
     obj = None
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) else None
 
@@ -302,8 +304,18 @@ def process_message_freetext(msg):
     if request.sid in Table_UserSessions:
         Table_UserSessions[request.sid].update_chat(msg['text'])
 
+    context_id = Table_UserSessions[request.sid].context_id
+    Table_UserSessions[request.sid].context_id = None
 
-    if msg_text in corpus_options['option_incident_create']:
+    if context_id == 1:
+        msg['id'] = '4'
+        process_message_with_id(msg)
+
+    elif context_id == 2:
+        msg['id'] = '5'
+        process_message_with_id(msg)
+
+    elif msg_text in corpus_options['option_incident_create']:
         msg['id'] = 1
         process_message_with_id(msg)
 

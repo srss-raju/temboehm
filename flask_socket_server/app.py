@@ -2,22 +2,50 @@
 
 from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
+import sys
 import json
-import requests
 import random
+import importlib
 
 import im_postgres_lib
+import im_incident_manager
 from im_corpus import corpus_options
 
 
+# Read the config file
 with open("config.json") as f:
-    conn_params = json.load(f)
+    try:
+        params = json.load(f)
 
-db = im_postgres_lib.im_postgres(conn_params['conn'])
+        conn_params = params['conn']
+        inc_mgr_id = params['incident_manager']
+    except ValueError as e:
+        print "The config file seems to be malformed. Please check"
+        print "ValueError:", sys.exc_info()[1]
+        exit(1)
+    except KeyError as e:
+        print "The config file doesn't contain one or more required field"
+        print "KeyError:", sys.exc_info()[1]
+        exit(1)
+
+
+# Get Database adapter
+db = im_postgres_lib.im_postgres(conn_params)
 if not db.isConnected():
     print "Unable to connect to Postgres database. Exiting"
     exit(1)
 
+
+# Get appropriate incident manager based on configuraion
+inc_mgr_name = im_incident_manager.get_manager(inc_mgr_id)
+if inc_mgr_name:
+    inc_mgr = importlib.import_module('im_incident_manager.%s'%inc_mgr_name)
+else:
+    print "INVALID value '%s' for the field 'incident_manager'. Please check the config file"%inc_mgr_id
+    exit(1)
+
+
+# Start flask server
 app = Flask(__name__)
 socketio = SocketIO(app)
 
@@ -152,7 +180,7 @@ def process_message_with_id(msg):
                                     'description' : msg['text'],
                                     'priority'    : 1
                                     }
-                    incident_num = incident_create(obj_incident)
+                    incident_num = inc_mgr.incident_create(obj_incident)
 
                     obj = {
                             'from'      : 'bot',
@@ -188,7 +216,7 @@ def process_message_with_id(msg):
                 and Table_UserSessions[request.sid].isActive()\
                 and msg.get('idToken'):
                     id_incident = msg['text']
-                    res = incident_status(id_incident)
+                    res = inc_mgr.incident_status(id_incident)
 
                     obj = {
                             'from'      : 'bot',
@@ -362,50 +390,6 @@ def process_message_freetext(msg):
         emit('message', obj)
 
     print "SERVER:: Sent message:\n", obj, "\n"
-
-
-#-----------------------------------------------------------------------------------------------------------------------
-def incident_create(obj_incident):
-    url = 'https://dev18273.service-now.com/api/now/v1/table/incident'
-    payload = {
-                    'short_description' : obj_incident['description'],
-                    'priority'          : obj_incident['priority'],
-                    'urgency'           : '1',
-                    'assignment_group'  : 'Hardware'
-                }
-    
-    response = requests.post(
-                             url,
-                             data    = json.dumps(payload),
-                             auth    = ("admin", "qegZBqHH8gO3"),
-                             headers = {'Content-type': 'application/json'}
-                             )
-
-    try:
-        incident_num = response.json()['result']['number'] or 0
-    except Exception as e:
-        print "ERROR: ", type(e), e
-        incident_num = 0
-        print response
-    
-    return incident_num
-
-
-#-----------------------------------------------------------------------------------------------------------------------
-def incident_status(id_incident):
-    url = 'https://dev18273.service-now.com/api/now/v2/table/incident?sysparm_display_value=true&sysparm_fields=incident_state&sysparm_query=number={id_incident}'\
-            .format(id_incident=id_incident)
-
-    response = requests.get(url, auth=("admin","qegZBqHH8gO3"))
-    try:
-        result = response.json()['result']
-        incident_state = result[0]['incident_state'] if result else 'Ticket number seems to be invalid. Could you please check and try again?'
-    except Exception as e:
-        print "ERROR: ", type(e), e
-        incident_state = ''
-        print response
-
-    return incident_state
 
 
 #-----------------------------------------------------------------------------------------------------------------------

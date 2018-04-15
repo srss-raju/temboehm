@@ -13,6 +13,31 @@ conn_params = {
 
 
 commands_create_n_insert= (
+    # Users table
+    """
+    CREATE TABLE ims_users(user_name TEXT PRIMARY KEY NOT NULL, password TEXT NOT NULL, otp INT);
+    """,
+
+    """
+    INSERT INTO ims_users values ('murali', 'pass1');
+    """,
+    """
+    INSERT INTO ims_users values ('rajesh', 'pass2');
+    """,
+    """
+    INSERT INTO ims_users values ('sarath', 'pass3');
+    """,
+
+
+    # Chat histiry table
+    """
+    CREATE TABLE ims_user_chat (user_name TEXT NOT NULL,
+                                chat_text TEXT NOT NULL,
+                                chat_end_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                                feedback TEXT NOT NULL);
+    """,
+
+
     # First level (master table)
     """
     CREATE TABLE ims_master_meta (_from TEXT DEFAULT 'bot', _type TEXT, _text TEXT);
@@ -263,7 +288,7 @@ commands_create_n_insert= (
     CREATE TABLE ims_VirusThreatsPhishing_meta (_from TEXT DEFAULT 'bot', _type TEXT, _text TEXT);
     """,
     """
-    INSERT INTO  ims_VirusThreatsPhishing_meta VALUES ('bot',
+    INSERT INTO ims_VirusThreatsPhishing_meta VALUES ('bot',
                                                        'questions',
                                                        'Click on appropriate link for further information - ');
     """,

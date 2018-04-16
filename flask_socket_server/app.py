@@ -2,6 +2,8 @@
 
 from flask import Flask, request
 from flask_socketio import SocketIO, send, emit
+from flask_cors import CORS
+
 import sys
 import json
 import random
@@ -47,6 +49,7 @@ else:
 
 # Start flask server
 app = Flask(__name__)
+CORS(app)
 socketio = SocketIO(app)
 
 
@@ -85,7 +88,7 @@ Table_UserSessions = {}
 
 
 #-----------------------------------------------------------------------------------------------------------------------
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST', 'OPTIONS'])
 def login():
     # print request.data
 
@@ -110,6 +113,9 @@ def login():
         else:
             print "SERVER:: User authentication FAILED\n\n"
             return ''
+
+    elif request.method == 'OPTIONS':
+        return ''
 
 
 #-----------------------------------------------------------------------------------------------------------------------

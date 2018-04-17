@@ -11,7 +11,7 @@ import importlib
 
 import im_postgres_lib
 import im_incident_manager
-from im_corpus import corpus_options
+import im_corpus
 
 
 # Read the config file
@@ -164,10 +164,12 @@ def process_message_with_id(msg):
     msg_id = msg['id']
     Table_UserSessions[request.sid].context_id = msg_id
     obj = None
+    obj2 = None
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
     tbl_name = 'ims_master'
-    for i in str(msg_id):
+    _msg_id = '' if msg_id == 0 else str(msg_id)
+    for i in _msg_id:
         tbl_name = db.Get_Child(tbl_name, i)
         if not tbl_name:
             break
@@ -196,7 +198,15 @@ def process_message_with_id(msg):
                                           else "Sorry. Couldn't create incident for your problem due to some issue with server",
                             'idToken'   : OTP,
                             }
+                    obj2 = {
+                            'from'      : 'bot',
+                            'type'      : 'text',
+                            'text'      : "Is there anything else that I can help you with?",
+                            'idToken'   : OTP,
+                            }
+
                     emit('message', obj)
+                    emit('message', obj2)
 
             else:
                 Table_UserSessions[request.sid].msg_waiting_for_login = msg
@@ -232,7 +242,15 @@ def process_message_with_id(msg):
                                             else "Sorry. Couldn't get the state of your incident due to some issue with server",
                             'idToken'   : OTP,
                             }
+                    obj2 = {
+                            'from'      : 'bot',
+                            'type'      : 'text',
+                            'text'      : "Is there anything else that I can help you with?",
+                            'idToken'   : OTP,
+                            }
+
                     emit('message', obj)
+                    emit('message', obj2)
 
             else:
                 Table_UserSessions[request.sid].msg_waiting_for_login = msg
@@ -262,13 +280,14 @@ def process_message_with_id(msg):
 
                 print "SERVER:: User logged in\n\n"
 
-                obj = {
-                        'from'      : 'bot',
-                        'type'      : 'text',
-                        'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
-                        'idToken'   : otp
-                        }
-                emit('message', obj)
+                obj_login = {
+                                'from'      : 'bot',
+                                'type'      : 'text',
+                                'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
+                                'idToken'   : otp
+                                }
+                emit('message', obj_login)
+                print "SERVER:: Sent message:\n", obj_login, "\n"
 
                 Table_UserSessions[request.sid].update_login_info(_username, otp)
 
@@ -327,7 +346,10 @@ def process_message_with_id(msg):
             emit('message', obj)
 
 
-    print "SERVER:: Sent message:\n", obj, "\n"
+    if obj:
+        print "SERVER:: Sent message:\n", obj, "\n"
+    if obj2:
+        print "SERVER:: Sent message:\n", obj2, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -350,11 +372,27 @@ def process_message_freetext(msg):
         msg['id'] = '5'
         process_message_with_id(msg)
 
-    elif msg_text in corpus_options['option_incident_create']:
+    elif context_id in ['4', '5']:
+        if msg_text in im_corpus.corpus_yes_no['yes']:
+            msg['id'] = 0
+            process_message_with_id(msg)
+        elif msg_text in im_corpus.corpus_yes_no['no']:
+            obj = {
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
+                    'idToken'   : OTP,
+                    }
+            emit('message', obj)
+        else:
+            process_message_freetext(msg)
+
+
+    elif msg_text in im_corpus.corpus_options['option_incident_create']:
         msg['id'] = 1
         process_message_with_id(msg)
 
-    elif msg_text in corpus_options['option_incident_enquiry']:
+    elif msg_text in im_corpus.corpus_options['option_incident_enquiry']:
         msg['id'] = 2
         process_message_with_id(msg)
 
@@ -396,7 +434,8 @@ def process_message_freetext(msg):
                 }
         emit('message', obj)
 
-    print "SERVER:: Sent message:\n", obj, "\n"
+    if obj:
+        print "SERVER:: Sent message:\n", obj, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------

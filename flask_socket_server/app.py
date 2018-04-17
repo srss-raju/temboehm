@@ -70,7 +70,7 @@ class UserSession:
         return self._username
 
     def get_chat_history(self):
-        return str(' ## '.join(self._chat_history))
+        return self._chat_history
 
     def isActive(self):
         return self._active
@@ -312,6 +312,7 @@ def process_message_with_id(msg):
 
             if request.sid in Table_UserSessions:
                 chat_history = Table_UserSessions[request.sid].get_chat_history()
+                chat_history = str(' ## '.join(chat_history))
                 user_name = Table_UserSessions[request.sid].get_username()
                 db.InsertInto_Table('ims_user_chat', ('user_name', 'chat_text', 'chat_end_time', 'feedback'), (user_name, chat_history, 'now', str(msg_text)))
 

@@ -211,7 +211,7 @@ def process_message_with_id(msg):
         obj = make_obj(metadata+(OTP,), data, msg_id)
         emit('message', obj)
     else:
-        if msg_id == '4':
+        if msg_id == '5':
             if request.sid in Table_UserSessions\
                 and Table_UserSessions[request.sid].isActive()\
                 and msg.get('idToken'):
@@ -232,7 +232,7 @@ def process_message_with_id(msg):
                     obj2 = {
                             'from'      : 'bot',
                             'type'      : 'prompt-action',
-                            'text'      : "Is there anything else that I can help you with?",
+                            'text'      : "Can I help you with anything else?",
                             'idToken'   : OTP,
                             'options': [
                                           {
@@ -268,7 +268,7 @@ def process_message_with_id(msg):
                 emit('message', obj)
 
 
-        elif msg_id == '5':
+        elif msg_id == '6':
             if request.sid in Table_UserSessions\
                 and Table_UserSessions[request.sid].isActive()\
                 and msg.get('idToken'):
@@ -286,7 +286,7 @@ def process_message_with_id(msg):
                     obj2 = {
                             'from'      : 'bot',
                             'type'      : 'prompt-action',
-                            'text'      : "Is there anything else that I can help you with?",
+                            'text'      : "Can I help you with anything else?",
                             'idToken'   : OTP,
                             'options': [
                                           {
@@ -334,7 +334,6 @@ def process_message_with_id(msg):
         elif msg_id == 92:
             msg['id'] = 0
             process_message_with_id(msg)
-
 
         elif msg_id == '0':
             otp = msg['text']
@@ -405,15 +404,15 @@ def process_message_freetext(msg):
     context_id = Table_UserSessions[request.sid].context_id
     Table_UserSessions[request.sid].context_id = None
 
-    if context_id == 1:
-        msg['id'] = '4'
-        process_message_with_id(msg)
-
-    elif context_id == 2:
+    if context_id in [1, 4]:
         msg['id'] = '5'
         process_message_with_id(msg)
 
-    elif context_id in ['4', '5']:
+    elif context_id == 2:
+        msg['id'] = '6'
+        process_message_with_id(msg)
+
+    elif context_id in ['5', '6']:
         if msg_text in im_corpus.corpus_yes_no['yes']:
             msg['id'] = 0
             process_message_with_id(msg)

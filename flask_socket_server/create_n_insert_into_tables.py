@@ -54,7 +54,8 @@ commands_create_n_insert= (
     """
     INSERT INTO ims_master (name, child) VALUES ('Incident Creation', 'ims_IncidentCreation'),
                                                  ('Incident Enquiry', 'ims_IncidentEnquiry'),
-                                                 ('Information', 'ims_Information');
+                                                 ('Information', 'ims_Information'),
+                                                 ('None', 'ims_None');
     """,
 
 
@@ -109,6 +110,18 @@ commands_create_n_insert= (
                                                      ('Server Connections', 'ims_ServerConnections');
     """,
 
+
+    # Second level (for option 4)
+    """
+    CREATE TABLE ims_None_meta (_from TEXT DEFAULT 'bot', _type TEXT, _text TEXT);
+    """,
+    """
+    INSERT INTO ims_none_meta VALUES ('bot', 'text', 'Well!, what do you want me to do now?');
+    """,
+
+    """
+    CREATE TABLE ims_None (id SERIAL PRIMARY KEY NOT NULL, name TEXT NOT NULL, child TEXT);
+    """,
 
 
     # Third level

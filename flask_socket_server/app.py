@@ -338,6 +338,15 @@ def process_message_with_id(msg):
         elif msg_id == '0':
             otp = msg['text']
 
+            try:
+                otp = int(otp)
+            except:
+                pass
+
+            if type(otp) in [str, unicode]:
+                process_message_freetext(msg)
+                return
+
             data = db.Get_RowsMatching('ims_users', 'otp', otp)
             if data:
                 _username = data[0]

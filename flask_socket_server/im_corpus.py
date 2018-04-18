@@ -55,3 +55,14 @@ corpus_yes_no = \
         ],
 }
 
+corpus_quit = \
+{
+    'quit' : \
+        [
+            'quit',
+            'exit',
+            'logout',
+            'break',
+        ]
+}
+

@@ -429,6 +429,15 @@ def process_message_freetext(msg):
         msg['id'] = 2
         process_message_with_id(msg)
 
+    elif msg_text in im_corpus.corpus_quit['quit']:
+        obj = {
+                'from'      : 'bot',
+                'type'      : 'text',
+                'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
+                'idToken'   : OTP,
+                }
+        emit('message', obj)
+
     elif 'access' in msg_text:
         msg['id'] = 31
         process_message_with_id(msg)

@@ -298,7 +298,7 @@ def process_message_with_id(msg):
         elif msg_id == 92:
             obj = {
                     'from'      : 'bot',
-                    'type'      : 'text',
+                    'type'      : 'request-feedback',
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                     'idToken'   : OTP,
                     }
@@ -412,7 +412,7 @@ def process_message_freetext(msg):
         elif msg_text in im_corpus.corpus_yes_no['no']:
             obj = {
                     'from'      : 'bot',
-                    'type'      : 'text',
+                    'type'      : 'request-feedback',
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                     'idToken'   : OTP,
                     }
@@ -432,7 +432,7 @@ def process_message_freetext(msg):
     elif msg_text in im_corpus.corpus_quit['quit']:
         obj = {
                 'from'      : 'bot',
-                'type'      : 'text',
+                'type'      : 'request-feedback',
                 'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                 'idToken'   : OTP,
                 }

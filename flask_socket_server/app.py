@@ -143,6 +143,37 @@ def disconnect():
 
 
 #-----------------------------------------------------------------------------------------------------------------------
+@socketio.on('feedback')
+def handle_feedback_event(msg):
+    print 'SERVER:: Received message: \n', str(msg)
+
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    msg_text = msg['text']
+
+    obj = {
+            'from'      : 'bot',
+            'type'      : 'text',
+            'text'      : '',
+            'idToken'   : OTP,
+            }
+
+    if msg_text in ['Terrible', 'Bad']:
+        obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will strive to improve your experience with us"
+    if msg_text in ['Okay', 'Good']:
+        obj['text'] = "Thanks for you feedback. We will improve ourself to serve you better"
+    elif msg_text == 'Great':
+        obj['text'] = "Thanks for you feedback. We are happy that we could give you a good experience"
+
+    emit('message', obj)
+
+    if request.sid in Table_UserSessions:
+        chat_history = Table_UserSessions[request.sid].get_chat_history()
+        chat_history = str(' ## '.join(chat_history))
+        user_name = Table_UserSessions[request.sid].get_username()
+        db.InsertInto_Table('ims_user_chat', ('user_name', 'chat_text', 'chat_end_time', 'feedback'), (user_name, chat_history, 'now', str(msg_text)))
+
+
+#-----------------------------------------------------------------------------------------------------------------------
 @socketio.on('message')
 def handle_sending_data_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
@@ -292,10 +323,6 @@ def process_message_with_id(msg):
 
 
         elif msg_id == 91:
-            msg['id'] = 0
-            process_message_with_id(msg)
-
-        elif msg_id == 92:
             obj = {
                     'from'      : 'bot',
                     'type'      : 'request-feedback',
@@ -303,6 +330,11 @@ def process_message_with_id(msg):
                     'idToken'   : OTP,
                     }
             emit('message', obj)
+
+        elif msg_id == 92:
+            msg['id'] = 0
+            process_message_with_id(msg)
+
 
         elif msg_id == '0':
             otp = msg['text']
@@ -343,30 +375,6 @@ def process_message_with_id(msg):
         elif msg_id == '-1':
             if request.sid in Table_UserSessions:
                 Table_UserSessions[request.sid].invalidate()
-
-        elif msg_id == '9999':
-            msg_text = msg['text']
-            obj = {
-                    'from'      : 'bot',
-                    'type'      : 'text',
-                    'text'      : '',
-                    'idToken'   : OTP,
-                    }
-
-            if msg_text in ['Terrible', 'Bad']:
-                obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will strive to improve your experience with us"
-            if msg_text in ['Okay', 'Good']:
-                obj['text'] = "Thanks for you feedback. We will improve ourself to serve you better"
-            elif msg_text == 'Great':
-                obj['text'] = "Thanks for you feedback. We are happy that we could give you a good experience"
-
-            emit('message', obj)
-
-            if request.sid in Table_UserSessions:
-                chat_history = Table_UserSessions[request.sid].get_chat_history()
-                chat_history = str(' ## '.join(chat_history))
-                user_name = Table_UserSessions[request.sid].get_username()
-                db.InsertInto_Table('ims_user_chat', ('user_name', 'chat_text', 'chat_end_time', 'feedback'), (user_name, chat_history, 'now', str(msg_text)))
 
         else:
             obj = {

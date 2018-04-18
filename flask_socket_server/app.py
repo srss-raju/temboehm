@@ -200,9 +200,19 @@ def process_message_with_id(msg):
                             }
                     obj2 = {
                             'from'      : 'bot',
-                            'type'      : 'text',
+                            'type'      : 'prompt-action',
                             'text'      : "Is there anything else that I can help you with?",
                             'idToken'   : OTP,
+                            'options': [
+                                          {
+                                              'id': 91,
+                                              'name': 'No'
+                                          },
+                                          {
+                                              'id': 92,
+                                              'name': 'Yes'
+                                          }
+                                        ]
                             }
 
                     emit('message', obj)
@@ -244,9 +254,19 @@ def process_message_with_id(msg):
                             }
                     obj2 = {
                             'from'      : 'bot',
-                            'type'      : 'text',
+                            'type'      : 'prompt-action',
                             'text'      : "Is there anything else that I can help you with?",
                             'idToken'   : OTP,
+                            'options': [
+                                          {
+                                              'id': 91,
+                                              'name': 'No'
+                                          },
+                                          {
+                                              'id': 92,
+                                              'name': 'Yes'
+                                          }
+                                        ]
                             }
 
                     emit('message', obj)
@@ -270,6 +290,19 @@ def process_message_with_id(msg):
 
                 emit('message', obj)
 
+
+        elif msg_id == 91:
+            msg['id'] = 0
+            process_message_with_id(msg)
+
+        elif msg_id == 92:
+            obj = {
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
+                    'idToken'   : OTP,
+                    }
+            emit('message', obj)
 
         elif msg_id == '0':
             otp = msg['text']

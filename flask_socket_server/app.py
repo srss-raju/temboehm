@@ -158,11 +158,11 @@ def handle_feedback_event(msg):
             }
 
     if msg_text in ['Terrible', 'Bad']:
-        obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will strive to improve your experience with us"
+        obj['text'] = "Thanks for you feedback. We are really sorry that you had a bad experience with us. We will strive to improve your experience with us in the future"
     if msg_text in ['Okay', 'Good']:
         obj['text'] = "Thanks for you feedback. We will improve ourself to serve you better"
     elif msg_text == 'Great':
-        obj['text'] = "Thanks for you feedback. We are happy that we could give you a good experience"
+        obj['text'] = "Thanks for you feedback. We are happy that we could give you a great experience"
 
     emit('message', obj)
 

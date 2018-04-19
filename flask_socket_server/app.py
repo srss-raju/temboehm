@@ -174,6 +174,56 @@ def handle_feedback_event(msg):
 
 
 #-----------------------------------------------------------------------------------------------------------------------
+@socketio.on('otp')
+def handle_otp_event(msg):
+    print 'SERVER:: Received message: \n', str(msg)
+
+    otp = msg['text']
+
+    try:
+        otp = int(otp)
+    except:
+        pass
+
+    if type(otp) in [str, unicode]:
+        process_message_freetext(msg)
+        return
+
+    data = db.Get_RowsMatching('ims_users', 'otp', otp)
+    if data:
+        _username = data[0]
+
+        print "SERVER:: User logged in\n\n"
+
+        obj_login = {
+                        'from'      : 'bot',
+                        'type'      : 'text',
+                        'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
+                        'idToken'   : otp
+                        }
+        emit('message', obj_login)
+        print "SERVER:: Sent message:\n", obj_login, "\n"
+
+        Table_UserSessions[request.sid].update_login_info(_username, otp)
+
+        msg_waiting_for_login = Table_UserSessions[request.sid].msg_waiting_for_login
+        if msg_waiting_for_login:
+            Table_UserSessions[request.sid].msg_waiting_for_login = None
+            msg_waiting_for_login['idToken'] = otp
+            process_message(msg_waiting_for_login)
+
+    else:
+        print "SERVER:: ERROR : User login FAILED\n\n"
+        obj = {
+                'from'      : 'bot',
+                'type'      : 'text',
+                'text'      : "Oops! I'm sorry. The code you entered is incorrect.",
+                'idToken'   : None
+                }
+        emit('message', obj)
+
+
+#-----------------------------------------------------------------------------------------------------------------------
 @socketio.on('message')
 def handle_sending_data_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
@@ -236,51 +286,6 @@ def process_message_with_id(msg):
         elif msg_id == 92:
             msg['id'] = 0
             process_message_with_id(msg)
-
-        elif msg_id == '0':
-            otp = msg['text']
-
-            try:
-                otp = int(otp)
-            except:
-                pass
-
-            if type(otp) in [str, unicode]:
-                process_message_freetext(msg)
-                return
-
-            data = db.Get_RowsMatching('ims_users', 'otp', otp)
-            if data:
-                _username = data[0]
-
-                print "SERVER:: User logged in\n\n"
-
-                obj_login = {
-                                'from'      : 'bot',
-                                'type'      : 'text',
-                                'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
-                                'idToken'   : otp
-                                }
-                emit('message', obj_login)
-                print "SERVER:: Sent message:\n", obj_login, "\n"
-
-                Table_UserSessions[request.sid].update_login_info(_username, otp)
-
-                msg_waiting_for_login = Table_UserSessions[request.sid].msg_waiting_for_login
-                if msg_waiting_for_login:
-                    Table_UserSessions[request.sid].msg_waiting_for_login = None
-                    msg_waiting_for_login['idToken'] = otp
-                    process_message(msg_waiting_for_login)
-
-            else:
-                print "SERVER:: ERROR : User login FAILED\n\n"
-                obj = {
-                        'from'      : 'bot',
-                        'type'      : 'text',
-                        'text'      : "Oops! I'm sorry. The code you entered is incorrect.",
-                        'idToken'   : None
-                        }
-                emit('message', obj)
 
         elif msg_id == '-1':
             if request.sid in Table_UserSessions:

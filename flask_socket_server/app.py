@@ -21,10 +21,12 @@ with open("config.json") as f:
 
         conn_params = params['conn']
         inc_mgr_id = params['incident_manager']
+
     except ValueError as e:
         print "The config file seems to be malformed. Please check"
         print "ValueError:", sys.exc_info()[1]
         exit(1)
+
     except KeyError as e:
         print "The config file doesn't contain one or more required field"
         print "KeyError:", sys.exc_info()[1]
@@ -47,7 +49,7 @@ else:
     exit(1)
 
 
-# Start flask server
+# Start flask server with CrossOriginResourceSharing and Socket capability
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app)
@@ -84,25 +86,26 @@ class UserSession:
         self._active    = True
 
 
+# SessionId -> UserSession object
 Table_UserSessions = {}
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 @app.route('/login', methods=['POST', 'OPTIONS'])
 def login():
-    # print request.data
-
     if request.method == 'POST':
-        # Get the form
+        # Get the application data
         data = eval(request.get_data())
 
-        # Extract the form data
+        # Extract the data
         user_name = data.get('username')
         password  = data.get('password')
 
+        # Get the stored password from database
         data = db.Get_RowsMatching('ims_users', 'user_name', user_name)
         _password = data[1]
 
+        # verify the user provided password; and generate an OTP
         if password == _password:
             otp = random.randint(1000, 9999)
             db.Update_Table('ims_users', 'otp', otp, "user_name='%s'"%user_name)
@@ -122,16 +125,15 @@ def login():
 @socketio.on('connect')
 def connect():
     print "SERVER:: Connection request received"
-    # emit('my response', {'data': 'Client Connected'})
 
     Table_UserSessions[request.sid] = UserSession(request.sid, None, None)
 
     metadata = db.Get_RowFirst('ims_master_meta')
     data = db.Get_RowsAll('ims_master')
-    obj2 = make_obj(metadata+(None,), data, 0)
+    obj = make_obj(metadata+(None,), data, 0)
 
-    emit('message', obj2)
-    print "SERVER:: Sent message:\n", obj2, "\n"
+    emit('message', obj)
+    print "SERVER:: Sent message:\n", obj, "\n"
 
     # return True
 
@@ -166,6 +168,7 @@ def handle_feedback_event(msg):
 
     emit('message', obj)
 
+    # Upon feedback, store the chat history into database
     if request.sid in Table_UserSessions:
         chat_history = Table_UserSessions[request.sid].get_chat_history()
         chat_history = str(' ## '.join(chat_history))
@@ -206,6 +209,7 @@ def handle_otp_event(msg):
 
         Table_UserSessions[request.sid].update_login_info(_username, otp)
 
+        # check for any pending message waiting for the user to login; if there is any, process it
         msg_waiting_for_login = Table_UserSessions[request.sid].msg_waiting_for_login
         if msg_waiting_for_login:
             Table_UserSessions[request.sid].msg_waiting_for_login = None
@@ -221,14 +225,13 @@ def handle_otp_event(msg):
                 'idToken'   : None
                 }
         emit('message', obj)
+        print "SERVER:: Sent message:\n", obj, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 @socketio.on('message')
-def handle_sending_data_event(msg):
+def handle_message_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
-    # emit('my response', {'data': "%d words"%(len(msg.split()))}, broadcast=True)
-
     process_message(msg)
 
 
@@ -245,7 +248,6 @@ def process_message_with_id(msg):
     msg_id = msg['id']
     Table_UserSessions[request.sid].context_id = msg_id
     obj = None
-    obj2 = None
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
     try:
@@ -304,8 +306,6 @@ def process_message_with_id(msg):
 
     if obj:
         print "SERVER:: Sent message:\n", obj, "\n"
-    if obj2:
-        print "SERVER:: Sent message:\n", obj2, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -317,6 +317,7 @@ def process_message_freetext(msg):
     if request.sid in Table_UserSessions:
         Table_UserSessions[request.sid].update_chat(msg['text'])
 
+    # Get the Context-Id
     context_id = Table_UserSessions[request.sid].context_id
     Table_UserSessions[request.sid].context_id = None
 

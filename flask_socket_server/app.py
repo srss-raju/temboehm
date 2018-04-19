@@ -79,6 +79,7 @@ class UserSession:
 
     def invalidate(self):
         self._active = False
+        self.otp = None
 
     def update_login_info(self, username, otp):
         self._username  = username
@@ -229,6 +230,56 @@ def handle_otp_event(msg):
 
 
 #-----------------------------------------------------------------------------------------------------------------------
+@socketio.on('idle')
+def handle_idle_event(msg):
+    print 'SERVER:: Received message: \n', str(msg)
+
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+
+    obj = {
+            'from'      : 'bot',
+            'type'      : 'prompt-action',
+            'text'      : "Can I help you with anything else?",
+            'idToken'   : OTP,
+            'options': [
+                          {
+                              'id': 91,
+                              'name': 'No'
+                          },
+                          {
+                              'id': 92,
+                              'name': 'Yes'
+                          }
+                        ]
+            }
+
+    emit('message', obj)
+    print "SERVER:: Sent message:\n", obj, "\n"
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+@socketio.on('timeout')
+def handle_timeout_event(msg):
+    print 'SERVER:: Received message: \n', str(msg)
+
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+
+    # Invalidate the session
+    if request.sid in Table_UserSessions:
+        Table_UserSessions[request.sid].invalidate()
+
+    obj = {
+            'from'      : 'bot',
+            'type'      : 'text',
+            'text'      : "Looks like you are away. Let's connect again once you are back. Thank you",
+            'idToken'   : OTP
+            }
+
+    emit('message', obj)
+    print "SERVER:: Sent message:\n", obj, "\n"
+
+
+#-----------------------------------------------------------------------------------------------------------------------
 @socketio.on('message')
 def handle_message_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
@@ -288,10 +339,6 @@ def process_message_with_id(msg):
         elif msg_id == 92:
             msg['id'] = 0
             process_message_with_id(msg)
-
-        elif msg_id == '-1':
-            if request.sid in Table_UserSessions:
-                Table_UserSessions[request.sid].invalidate()
 
         else:
             obj = {

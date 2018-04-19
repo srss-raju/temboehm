@@ -198,12 +198,19 @@ def process_message_with_id(msg):
     obj2 = None
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
-    tbl_name = 'ims_master'
-    _msg_id = '' if msg_id == 0 else str(msg_id)
-    for i in _msg_id:
-        tbl_name = db.Get_Child(tbl_name, i)
-        if not tbl_name:
-            break
+    try:
+        _msg_id = int(msg_id)
+    except:
+        _msg_id = ''
+
+    tbl_name = None
+    if type(_msg_id) is int:
+        tbl_name = 'ims_master'
+        _msg_id = '' if msg_id == 0 else str(msg_id)
+        for i in _msg_id:
+            tbl_name = db.Get_Child(tbl_name, i)
+            if not tbl_name:
+                break
 
     if tbl_name:
         metadata = db.Get_RowFirst('%s_meta'%tbl_name)
@@ -211,116 +218,11 @@ def process_message_with_id(msg):
         obj = make_obj(metadata+(OTP,), data, msg_id)
         emit('message', obj)
     else:
-        if msg_id == '5':
-            if request.sid in Table_UserSessions\
-                and Table_UserSessions[request.sid].isActive()\
-                and msg.get('idToken'):
-                    obj_incident = {
-                                    'description' : msg['text'],
-                                    'priority'    : 1
-                                    }
-                    incident_num = inc_mgr.incident_create(obj_incident)
+        if msg_id == 'on_create_incident':
+            on_create_incident(msg)
 
-                    obj = {
-                            'from'      : 'bot',
-                            'type'      : 'text',
-                            'text'      : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
-                                          if incident_num\
-                                          else "Sorry. Couldn't create incident for your problem due to some issue with server",
-                            'idToken'   : OTP,
-                            }
-                    obj2 = {
-                            'from'      : 'bot',
-                            'type'      : 'prompt-action',
-                            'text'      : "Can I help you with anything else?",
-                            'idToken'   : OTP,
-                            'options': [
-                                          {
-                                              'id': 91,
-                                              'name': 'No'
-                                          },
-                                          {
-                                              'id': 92,
-                                              'name': 'Yes'
-                                          }
-                                        ]
-                            }
-
-                    emit('message', obj)
-                    emit('message', obj2)
-
-            else:
-                Table_UserSessions[request.sid].msg_waiting_for_login = msg
-
-                obj = {
-                        'from'      : "bot",
-                        'type'      : "mandatory-action",
-                        'text'      : "Please click this link to signin first",
-                        'idToken'   : None,
-                        'options'   : [
-                                        {
-                                            'id'    : 0,
-                                            'name'  : 'signin'
-                                        }
-                                      ]
-                      }
-
-                emit('message', obj)
-
-
-        elif msg_id == '6':
-            if request.sid in Table_UserSessions\
-                and Table_UserSessions[request.sid].isActive()\
-                and msg.get('idToken'):
-                    id_incident = msg['text']
-                    res = inc_mgr.incident_status(id_incident)
-
-                    obj = {
-                            'from'      : 'bot',
-                            'type'      : 'text',
-                            'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
-                                            if res\
-                                            else "Sorry. Couldn't get the state of your incident due to some issue with server",
-                            'idToken'   : OTP,
-                            }
-                    obj2 = {
-                            'from'      : 'bot',
-                            'type'      : 'prompt-action',
-                            'text'      : "Can I help you with anything else?",
-                            'idToken'   : OTP,
-                            'options': [
-                                          {
-                                              'id': 91,
-                                              'name': 'No'
-                                          },
-                                          {
-                                              'id': 92,
-                                              'name': 'Yes'
-                                          }
-                                        ]
-                            }
-
-                    emit('message', obj)
-                    emit('message', obj2)
-
-            else:
-                Table_UserSessions[request.sid].msg_waiting_for_login = msg
-
-                obj = {
-                        'from'      : "bot",
-                        'type'      : "mandatory-action",
-                        'text'      : "Please click this link to signin first",
-                        'idToken'   : None,
-                        'options'   : [
-                                        {
-                                            'id'    : 0,
-                                            'name'  : 'signin'
-                                        }
-                                      ]
-                      }
-
-                emit('message', obj)
-
+        elif msg_id == 'on_enquire_incident':
+            on_enquire_incident(msg)
 
         elif msg_id == 91:
             obj = {
@@ -414,14 +316,14 @@ def process_message_freetext(msg):
     Table_UserSessions[request.sid].context_id = None
 
     if context_id in [1, 4]:
-        msg['id'] = '5'
-        process_message_with_id(msg)
+        msg['id'] = 'on_create_incident'
+        on_create_incident(msg)
 
     elif context_id == 2:
-        msg['id'] = '6'
-        process_message_with_id(msg)
+        msg['id'] = 'on_enquire_incident'
+        on_enquire_incident(msg)
 
-    elif context_id in ['5', '6']:
+    elif context_id in ['on_create_incident', 'on_enquire_incident']:
         if msg_text in im_corpus.corpus_yes_no['yes']:
             msg['id'] = 0
             process_message_with_id(msg)
@@ -494,6 +396,139 @@ def process_message_freetext(msg):
 
     if obj:
         print "SERVER:: Sent message:\n", obj, "\n"
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+def on_create_incident(msg):
+    Table_UserSessions[request.sid].context_id = msg['id']
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    obj = None
+    obj2 = None
+
+    if request.sid in Table_UserSessions\
+        and Table_UserSessions[request.sid].isActive()\
+        and msg.get('idToken'):
+            obj_incident = {
+                            'description' : msg['text'],
+                            'priority'    : 1
+                            }
+            incident_num = inc_mgr.incident_create(obj_incident)
+
+            obj = {
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
+                                  if incident_num\
+                                  else "Sorry. Couldn't create incident for your problem due to some issue with server",
+                    'idToken'   : OTP,
+                    }
+            obj2 = {
+                    'from'      : 'bot',
+                    'type'      : 'prompt-action',
+                    'text'      : "Can I help you with anything else?",
+                    'idToken'   : OTP,
+                    'options': [
+                                  {
+                                      'id': 91,
+                                      'name': 'No'
+                                  },
+                                  {
+                                      'id': 92,
+                                      'name': 'Yes'
+                                  }
+                                ]
+                    }
+
+            emit('message', obj)
+            emit('message', obj2)
+
+    else:
+        Table_UserSessions[request.sid].msg_waiting_for_login = msg
+
+        obj = {
+                'from'      : "bot",
+                'type'      : "mandatory-action",
+                'text'      : "Please click this link to signin first",
+                'idToken'   : None,
+                'options'   : [
+                                {
+                                    'id'    : 0,
+                                    'name'  : 'signin'
+                                }
+                              ]
+              }
+
+        emit('message', obj)
+
+    if obj:
+        print "SERVER:: Sent message:\n", obj, "\n"
+    if obj2:
+        print "SERVER:: Sent message:\n", obj2, "\n"
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+def on_enquire_incident(msg):
+    Table_UserSessions[request.sid].context_id = msg['id']
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    obj = None
+    obj2 = None
+
+    if request.sid in Table_UserSessions\
+        and Table_UserSessions[request.sid].isActive()\
+        and msg.get('idToken'):
+            id_incident = msg['text']
+            res = inc_mgr.incident_status(id_incident)
+
+            obj = {
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
+                                    if res\
+                                    else "Sorry. Couldn't get the state of your incident due to some issue with server",
+                    'idToken'   : OTP,
+                    }
+            obj2 = {
+                    'from'      : 'bot',
+                    'type'      : 'prompt-action',
+                    'text'      : "Can I help you with anything else?",
+                    'idToken'   : OTP,
+                    'options': [
+                                  {
+                                      'id': 91,
+                                      'name': 'No'
+                                  },
+                                  {
+                                      'id': 92,
+                                      'name': 'Yes'
+                                  }
+                                ]
+                    }
+
+            emit('message', obj)
+            emit('message', obj2)
+
+    else:
+        Table_UserSessions[request.sid].msg_waiting_for_login = msg
+
+        obj = {
+                'from'      : "bot",
+                'type'      : "mandatory-action",
+                'text'      : "Please click this link to signin first",
+                'idToken'   : None,
+                'options'   : [
+                                {
+                                    'id'    : 0,
+                                    'name'  : 'signin'
+                                }
+                              ]
+              }
+
+        emit('message', obj)
+
+    if obj:
+        print "SERVER:: Sent message:\n", obj, "\n"
+    if obj2:
+        print "SERVER:: Sent message:\n", obj2, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------

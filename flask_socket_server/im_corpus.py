@@ -12,7 +12,14 @@ corpus_options = \
             'Accounting tool has problem',
             'SAP application is not up',
             'issue',
-            'problem'
+            'problem',
+            'ticket',
+            'another issue',
+            'another problem',
+            'another ticket',
+            'one more issue',
+            'one more problem',
+            'one more ticket',
         ],
 
     'option_incident_enquiry' : \
@@ -27,5 +34,35 @@ corpus_options = \
             'is my issue resolved',
             'is my ticket resolved',
         ],
+}
+
+corpus_yes_no = \
+{
+    'yes' : \
+        [
+            'yes',
+            'yeah',
+            'yup',
+        ],
+
+    'no' : \
+        [
+            'no',
+            'nope',
+            'nothing',
+            'thats it',
+            'thats all',
+        ],
+}
+
+corpus_quit = \
+{
+    'quit' : \
+        [
+            'quit',
+            'exit',
+            'logout',
+            'break',
+        ]
 }
 

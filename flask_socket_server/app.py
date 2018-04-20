@@ -11,7 +11,9 @@ import importlib
 
 import im_postgres_lib
 import im_incident_manager
+
 import im_corpus
+import sentiment
 
 
 # Read the config file
@@ -353,6 +355,8 @@ def process_message_freetext(msg):
     if request.sid in Table_UserSessions:
         Table_UserSessions[request.sid].update_chat(msg['text'])
 
+    intensity = sentiment.getIntensity('. '.join(Table_UserSessions[request.sid].get_chat_history()))
+
     # Get the Context-Id
     context_id = Table_UserSessions[request.sid].context_id
     Table_UserSessions[request.sid].context_id = None
@@ -423,7 +427,8 @@ def process_message_freetext(msg):
                 'from'      : 'bot',
                 'type'      : 'text',
                 'text'      : "Hello",
-                'idToken'   : OTP
+                'idToken'   : OTP,
+                'intensity' : intensity
                 }
         emit_n_print('message', obj)
 
@@ -432,7 +437,8 @@ def process_message_freetext(msg):
                 'from'      : 'bot',
                 'type'      : 'text',
                 'text'      : "I'm sorry. I don't think I've understood your query. Please write an email to chatbot@innominds.com for more help. Thank you",
-                'idToken'   : OTP
+                'idToken'   : OTP,
+                'intensity' : intensity
                 }
         emit_n_print('message', obj)
 

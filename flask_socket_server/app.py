@@ -133,8 +133,7 @@ def connect():
     data = db.Get_RowsAll('ims_master')
     obj = make_obj(metadata+(None,), data, 0)
 
-    emit('message', obj)
-    print "SERVER:: Sent message:\n", obj, "\n"
+    emit_n_print('message', obj)
 
     # return True
 
@@ -167,7 +166,7 @@ def handle_feedback_event(msg):
     elif msg_text == 'Great':
         obj['text'] = "Thanks for you feedback. We are happy that we could give you a great experience"
 
-    emit('message', obj)
+    emit_n_print('message', obj)
 
     # Upon feedback, store the chat history into database
     if request.sid in Table_UserSessions:
@@ -205,8 +204,7 @@ def handle_otp_event(msg):
                         'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
                         'idToken'   : otp
                         }
-        emit('message', obj_login)
-        print "SERVER:: Sent message:\n", obj_login, "\n"
+        emit_n_print('message', obj_login)
 
         Table_UserSessions[request.sid].update_login_info(_username, otp)
 
@@ -225,8 +223,7 @@ def handle_otp_event(msg):
                 'text'      : "Oops! I'm sorry. The code you entered is incorrect.",
                 'idToken'   : None
                 }
-        emit('message', obj)
-        print "SERVER:: Sent message:\n", obj, "\n"
+        emit_n_print('message', obj)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -253,8 +250,7 @@ def handle_idle_event(msg):
                         ]
             }
 
-    emit('message', obj)
-    print "SERVER:: Sent message:\n", obj, "\n"
+    emit_n_print('message', obj)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -275,8 +271,7 @@ def handle_timeout_event(msg):
             'idToken'   : OTP
             }
 
-    emit('message', obj)
-    print "SERVER:: Sent message:\n", obj, "\n"
+    emit_n_print('message', obj)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -298,7 +293,6 @@ def process_message(msg):
 def process_message_with_id(msg):
     msg_id = msg['id']
     Table_UserSessions[request.sid].context_id = msg_id
-    obj = None
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
     try:
@@ -319,7 +313,7 @@ def process_message_with_id(msg):
         metadata = db.Get_RowFirst('%s_meta'%tbl_name)
         data = db.Get_RowsAll(tbl_name)
         obj = make_obj(metadata+(OTP,), data, msg_id)
-        emit('message', obj)
+        emit_n_print('message', obj)
     else:
         if msg_id == 'on_create_incident':
             on_create_incident(msg)
@@ -334,7 +328,7 @@ def process_message_with_id(msg):
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                     'idToken'   : OTP,
                     }
-            emit('message', obj)
+            emit_n_print('message', obj)
 
         elif msg_id == 92:
             msg['id'] = 0
@@ -348,17 +342,12 @@ def process_message_with_id(msg):
                     'idToken'   : OTP,
                     }
 
-            emit('message', obj)
-
-
-    if obj:
-        print "SERVER:: Sent message:\n", obj, "\n"
+            emit_n_print('message', obj)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message_freetext(msg):
     msg_text = msg['text'].strip().lower()
-    obj = None
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
     if request.sid in Table_UserSessions:
@@ -387,7 +376,7 @@ def process_message_freetext(msg):
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                     'idToken'   : OTP,
                     }
-            emit('message', obj)
+            emit_n_print('message', obj)
         else:
             process_message_freetext(msg)
 
@@ -407,7 +396,7 @@ def process_message_freetext(msg):
                 'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                 'idToken'   : OTP,
                 }
-        emit('message', obj)
+        emit_n_print('message', obj)
 
     elif 'access' in msg_text:
         msg['id'] = 31
@@ -436,7 +425,7 @@ def process_message_freetext(msg):
                 'text'      : "Hello",
                 'idToken'   : OTP
                 }
-        emit('message', obj)
+        emit_n_print('message', obj)
 
     else:
         obj = {
@@ -445,18 +434,13 @@ def process_message_freetext(msg):
                 'text'      : "I'm sorry. I don't think I've understood your query. Please write an email to chatbot@innominds.com for more help. Thank you",
                 'idToken'   : OTP
                 }
-        emit('message', obj)
-
-    if obj:
-        print "SERVER:: Sent message:\n", obj, "\n"
+        emit_n_print('message', obj)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 def on_create_incident(msg):
     Table_UserSessions[request.sid].context_id = msg['id']
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
-    obj = None
-    obj2 = None
 
     if request.sid in Table_UserSessions\
         and Table_UserSessions[request.sid].isActive()\
@@ -492,8 +476,8 @@ def on_create_incident(msg):
                                 ]
                     }
 
-            emit('message', obj)
-            emit('message', obj2)
+            emit_n_print('message', obj)
+            emit_n_print('message', obj2)
 
     else:
         Table_UserSessions[request.sid].msg_waiting_for_login = msg
@@ -511,20 +495,13 @@ def on_create_incident(msg):
                               ]
               }
 
-        emit('message', obj)
-
-    if obj:
-        print "SERVER:: Sent message:\n", obj, "\n"
-    if obj2:
-        print "SERVER:: Sent message:\n", obj2, "\n"
+        emit_n_print('message', obj)
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 def on_enquire_incident(msg):
     Table_UserSessions[request.sid].context_id = msg['id']
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
-    obj = None
-    obj2 = None
 
     if request.sid in Table_UserSessions\
         and Table_UserSessions[request.sid].isActive()\
@@ -557,8 +534,8 @@ def on_enquire_incident(msg):
                                 ]
                     }
 
-            emit('message', obj)
-            emit('message', obj2)
+            emit_n_print('message', obj)
+            emit_n_print('message', obj2)
 
     else:
         Table_UserSessions[request.sid].msg_waiting_for_login = msg
@@ -576,12 +553,14 @@ def on_enquire_incident(msg):
                               ]
               }
 
-        emit('message', obj)
+        emit_n_print('message', obj)
 
-    if obj:
-        print "SERVER:: Sent message:\n", obj, "\n"
-    if obj2:
-        print "SERVER:: Sent message:\n", obj2, "\n"
+
+#-----------------------------------------------------------------------------------------------------------------------
+def emit_n_print(evt_name, msg):
+    # msg['idToken'] = idToken
+    emit(evt_name, msg)
+    print "SERVER:: Sent message:\n", msg, "\n"
 
 
 #-----------------------------------------------------------------------------------------------------------------------

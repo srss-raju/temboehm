@@ -66,6 +66,7 @@ class UserSession:
         self.otp                    = otp
         self.msg_waiting_for_login  = None
         self.context_id             = None
+        self.intensity              = 0
 
     def update_chat(self, msg):
         self._chat_history.append(msg)
@@ -130,10 +131,11 @@ def connect():
     print "SERVER:: Connection request received"
 
     Table_UserSessions[request.sid] = UserSession(request.sid, None, None)
+    intensity = Table_UserSessions[request.sid].intensity
 
-    metadata = db.Get_RowFirst('ims_master_meta')
+    metadata = db.Get_RowFirst('ims_master_meta') + (None, intensity)
     data = db.Get_RowsAll('ims_master')
-    obj = make_obj(metadata+(None,), data, 0)
+    obj = make_obj(metadata, data, 0)
 
     emit_n_print('message', obj)
 
@@ -152,6 +154,7 @@ def handle_feedback_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
 
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
     msg_text = msg['text']
 
     obj = {
@@ -159,6 +162,7 @@ def handle_feedback_event(msg):
             'type'      : 'text',
             'text'      : '',
             'idToken'   : OTP,
+            'intensity' : intensity
             }
 
     if msg_text in ['Terrible', 'Bad']:
@@ -194,6 +198,7 @@ def handle_otp_event(msg):
         process_message_freetext(msg)
         return
 
+    intensity = Table_UserSessions[request.sid].intensity
     data = db.Get_RowsMatching('ims_users', 'otp', otp)
     if data:
         _username = data[0]
@@ -204,7 +209,8 @@ def handle_otp_event(msg):
                         'from'      : 'bot',
                         'type'      : 'text',
                         'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
-                        'idToken'   : otp
+                        'idToken'   : otp,
+                        'intensity' : intensity
                         }
         emit_n_print('message', obj_login)
 
@@ -223,7 +229,8 @@ def handle_otp_event(msg):
                 'from'      : 'bot',
                 'type'      : 'text',
                 'text'      : "Oops! I'm sorry. The code you entered is incorrect.",
-                'idToken'   : None
+                'idToken'   : None,
+                'intensity' : intensity
                 }
         emit_n_print('message', obj)
 
@@ -234,12 +241,14 @@ def handle_idle_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
 
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
 
     obj = {
             'from'      : 'bot',
             'type'      : 'prompt-action',
             'text'      : "Can I help you with anything else?",
             'idToken'   : OTP,
+            'intensity' : intensity,
             'options': [
                           {
                               'id': 91,
@@ -261,6 +270,7 @@ def handle_timeout_event(msg):
     print 'SERVER:: Received message: \n', str(msg)
 
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
 
     # Invalidate the session
     if request.sid in Table_UserSessions:
@@ -270,7 +280,8 @@ def handle_timeout_event(msg):
             'from'      : 'bot',
             'type'      : 'text',
             'text'      : "Looks like you are away. Let's connect again once you are back. Thank you",
-            'idToken'   : OTP
+            'idToken'   : OTP,
+            'intensity' : intensity
             }
 
     emit_n_print('message', obj)
@@ -296,6 +307,7 @@ def process_message_with_id(msg):
     msg_id = msg['id']
     Table_UserSessions[request.sid].context_id = msg_id
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
 
     try:
         _msg_id = int(msg_id)
@@ -312,9 +324,9 @@ def process_message_with_id(msg):
                 break
 
     if tbl_name:
-        metadata = db.Get_RowFirst('%s_meta'%tbl_name)
+        metadata = db.Get_RowFirst('%s_meta'%tbl_name) + (OTP, intensity)
         data = db.Get_RowsAll(tbl_name)
-        obj = make_obj(metadata+(OTP,), data, msg_id)
+        obj = make_obj(metadata, data, msg_id)
         emit_n_print('message', obj)
     else:
         if msg_id == 'on_create_incident':
@@ -329,6 +341,7 @@ def process_message_with_id(msg):
                     'type'      : 'request-feedback',
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                     'idToken'   : OTP,
+                    'intensity' : intensity
                     }
             emit_n_print('message', obj)
 
@@ -342,6 +355,7 @@ def process_message_with_id(msg):
                     'type'      : 'text',
                     'text'      : 'Please use this link to get information on this: https://innominds.com/%s'%('_'.join(msg['text'].split())),
                     'idToken'   : OTP,
+                    'intensity' : intensity
                     }
 
             emit_n_print('message', obj)
@@ -356,6 +370,7 @@ def process_message_freetext(msg):
         Table_UserSessions[request.sid].update_chat(msg['text'])
 
     intensity = sentiment.getIntensity('. '.join(Table_UserSessions[request.sid].get_chat_history()))
+    Table_UserSessions[request.sid].intensity = intensity
 
     # Get the Context-Id
     context_id = Table_UserSessions[request.sid].context_id
@@ -379,6 +394,7 @@ def process_message_freetext(msg):
                     'type'      : 'request-feedback',
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                     'idToken'   : OTP,
+                    'intensity' : intensity
                     }
             emit_n_print('message', obj)
         else:
@@ -399,6 +415,7 @@ def process_message_freetext(msg):
                 'type'      : 'request-feedback',
                 'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
                 'idToken'   : OTP,
+                'intensity' : intensity
                 }
         emit_n_print('message', obj)
 
@@ -447,6 +464,7 @@ def process_message_freetext(msg):
 def on_create_incident(msg):
     Table_UserSessions[request.sid].context_id = msg['id']
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
 
     if request.sid in Table_UserSessions\
         and Table_UserSessions[request.sid].isActive()\
@@ -464,12 +482,14 @@ def on_create_incident(msg):
                                   if incident_num\
                                   else "Sorry. Couldn't create incident for your problem due to some issue with server",
                     'idToken'   : OTP,
+                    'intensity' : intensity
                     }
             obj2 = {
                     'from'      : 'bot',
                     'type'      : 'prompt-action',
                     'text'      : "Can I help you with anything else?",
                     'idToken'   : OTP,
+                    'intensity' : intensity,
                     'options': [
                                   {
                                       'id': 91,
@@ -493,6 +513,7 @@ def on_create_incident(msg):
                 'type'      : "mandatory-action",
                 'text'      : "Please click this link to signin first",
                 'idToken'   : None,
+                'intensity' : intensity,
                 'options'   : [
                                 {
                                     'id'    : 0,
@@ -508,6 +529,7 @@ def on_create_incident(msg):
 def on_enquire_incident(msg):
     Table_UserSessions[request.sid].context_id = msg['id']
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
 
     if request.sid in Table_UserSessions\
         and Table_UserSessions[request.sid].isActive()\
@@ -522,12 +544,14 @@ def on_enquire_incident(msg):
                                     if res\
                                     else "Sorry. Couldn't get the state of your incident due to some issue with server",
                     'idToken'   : OTP,
+                    'intensity' : intensity
                     }
             obj2 = {
                     'from'      : 'bot',
                     'type'      : 'prompt-action',
                     'text'      : "Can I help you with anything else?",
                     'idToken'   : OTP,
+                    'intensity' : intensity,
                     'options': [
                                   {
                                       'id': 91,
@@ -551,6 +575,7 @@ def on_enquire_incident(msg):
                 'type'      : "mandatory-action",
                 'text'      : "Please click this link to signin first",
                 'idToken'   : None,
+                'intensity' : intensity,
                 'options'   : [
                                 {
                                     'id'    : 0,
@@ -571,7 +596,7 @@ def emit_n_print(evt_name, msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def make_header(metadata):
-    return {i:j for i,j in zip(('from', 'type', 'text', 'idToken'), metadata)}
+    return {i:j for i,j in zip(('from', 'type', 'text', 'idToken', 'intensity'), metadata)}
 
 
 #-----------------------------------------------------------------------------------------------------------------------

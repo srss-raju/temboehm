@@ -5,6 +5,7 @@ from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS
 
 import sys
+import time
 import json
 import random
 import importlib
@@ -133,7 +134,7 @@ def connect():
     Table_UserSessions[request.sid] = UserSession(request.sid, None, None)
     intensity = Table_UserSessions[request.sid].intensity
 
-    metadata = db.Get_RowFirst('ims_master_meta') + (None, intensity)
+    metadata = db.Get_RowFirst('ims_master_meta') + (time.strftime("%I:%M %p"), None, intensity)
     data = db.Get_RowsAll('ims_master')
     obj = make_obj(metadata, data, 0)
 
@@ -161,6 +162,7 @@ def handle_feedback_event(msg):
             'from'      : 'bot',
             'type'      : 'text',
             'text'      : '',
+            'timestamp' : time.strftime("%I:%M %p"),
             'idToken'   : OTP,
             'intensity' : intensity
             }
@@ -209,6 +211,7 @@ def handle_otp_event(msg):
                         'from'      : 'bot',
                         'type'      : 'text',
                         'text'      : "Welcome, {username}! You are now logged in".format(username=_username),
+                        'timestamp' : time.strftime("%I:%M %p"),
                         'idToken'   : otp,
                         'intensity' : intensity
                         }
@@ -229,6 +232,7 @@ def handle_otp_event(msg):
                 'from'      : 'bot',
                 'type'      : 'text',
                 'text'      : "Oops! I'm sorry. The code you entered is incorrect.",
+                'timestamp' : time.strftime("%I:%M %p"),
                 'idToken'   : None,
                 'intensity' : intensity
                 }
@@ -247,6 +251,7 @@ def handle_idle_event(msg):
             'from'      : 'bot',
             'type'      : 'prompt-action',
             'text'      : "Can I help you with anything else?",
+            'timestamp' : time.strftime("%I:%M %p"),
             'idToken'   : OTP,
             'intensity' : intensity,
             'options': [
@@ -280,6 +285,7 @@ def handle_timeout_event(msg):
             'from'      : 'bot',
             'type'      : 'text',
             'text'      : "Looks like you are away. Let's connect again once you are back. Thank you",
+            'timestamp' : time.strftime("%I:%M %p"),
             'idToken'   : OTP,
             'intensity' : intensity
             }
@@ -324,7 +330,7 @@ def process_message_with_id(msg):
                 break
 
     if tbl_name:
-        metadata = db.Get_RowFirst('%s_meta'%tbl_name) + (OTP, intensity)
+        metadata = db.Get_RowFirst('%s_meta'%tbl_name) + (time.strftime("%I:%M %p"), OTP, intensity)
         data = db.Get_RowsAll(tbl_name)
         obj = make_obj(metadata, data, msg_id)
         emit_n_print('message', obj)
@@ -340,6 +346,7 @@ def process_message_with_id(msg):
                     'from'      : 'bot',
                     'type'      : 'request-feedback',
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity
                     }
@@ -354,6 +361,7 @@ def process_message_with_id(msg):
                     'from'      : 'bot',
                     'type'      : 'text',
                     'text'      : 'Please use this link to get information on this: https://innominds.com/%s'%('_'.join(msg['text'].split())),
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity
                     }
@@ -393,6 +401,7 @@ def process_message_freetext(msg):
                     'from'      : 'bot',
                     'type'      : 'request-feedback',
                     'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity
                     }
@@ -414,6 +423,7 @@ def process_message_freetext(msg):
                 'from'      : 'bot',
                 'type'      : 'request-feedback',
                 'text'      : 'Thank you. Please provide feedback on your experience with us. Your feedback helps us serve you better',
+                'timestamp' : time.strftime("%I:%M %p"),
                 'idToken'   : OTP,
                 'intensity' : intensity
                 }
@@ -444,6 +454,7 @@ def process_message_freetext(msg):
                 'from'      : 'bot',
                 'type'      : 'text',
                 'text'      : "Hello",
+                'timestamp' : time.strftime("%I:%M %p"),
                 'idToken'   : OTP,
                 'intensity' : intensity
                 }
@@ -454,6 +465,7 @@ def process_message_freetext(msg):
                 'from'      : 'bot',
                 'type'      : 'text',
                 'text'      : "I'm sorry. I don't think I've understood your query. Please write an email to chatbot@innominds.com for more help. Thank you",
+                'timestamp' : time.strftime("%I:%M %p"),
                 'idToken'   : OTP,
                 'intensity' : intensity
                 }
@@ -481,6 +493,7 @@ def on_create_incident(msg):
                     'text'      : "A ticket has been created for your issue. Ticket reference number is : {0}".format(incident_num)\
                                   if incident_num\
                                   else "Sorry. Couldn't create incident for your problem due to some issue with server",
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity
                     }
@@ -488,6 +501,7 @@ def on_create_incident(msg):
                     'from'      : 'bot',
                     'type'      : 'prompt-action',
                     'text'      : "Can I help you with anything else?",
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity,
                     'options': [
@@ -512,6 +526,7 @@ def on_create_incident(msg):
                 'from'      : "bot",
                 'type'      : "mandatory-action",
                 'text'      : "Please click this link to signin first",
+                'timestamp' : time.strftime("%I:%M %p"),
                 'idToken'   : None,
                 'intensity' : intensity,
                 'options'   : [
@@ -543,6 +558,7 @@ def on_enquire_incident(msg):
                     'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
                                     if res\
                                     else "Sorry. Couldn't get the state of your incident due to some issue with server",
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity
                     }
@@ -550,6 +566,7 @@ def on_enquire_incident(msg):
                     'from'      : 'bot',
                     'type'      : 'prompt-action',
                     'text'      : "Can I help you with anything else?",
+                    'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity,
                     'options': [
@@ -574,6 +591,7 @@ def on_enquire_incident(msg):
                 'from'      : "bot",
                 'type'      : "mandatory-action",
                 'text'      : "Please click this link to signin first",
+                'timestamp' : time.strftime("%I:%M %p"),
                 'idToken'   : None,
                 'intensity' : intensity,
                 'options'   : [
@@ -596,7 +614,7 @@ def emit_n_print(evt_name, msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def make_header(metadata):
-    return {i:j for i,j in zip(('from', 'type', 'text', 'idToken', 'intensity'), metadata)}
+    return {i:j for i,j in zip(('from', 'type', 'text', 'timestamp', 'idToken', 'intensity'), metadata)}
 
 
 #-----------------------------------------------------------------------------------------------------------------------

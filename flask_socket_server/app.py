@@ -67,6 +67,7 @@ class UserSession:
         self.otp                    = otp
         self.msg_waiting_for_login  = None
         self.context_id             = None
+        self.incident_id_enquired   = ''
         self.intensity              = 0
 
     def update_chat(self, msg):
@@ -341,6 +342,9 @@ def process_message_with_id(msg):
         elif msg_id == 'on_enquire_incident':
             on_enquire_incident(msg)
 
+        elif msg_id == 'on_update_incident':
+            on_update_incident(msg)
+
         elif msg_id == 91:
             obj = {
                     'from'      : 'bot',
@@ -355,6 +359,22 @@ def process_message_with_id(msg):
         elif msg_id == 92:
             msg['id'] = 0
             process_message_with_id(msg)
+
+
+        elif msg_id == 93:
+            msg['id'] = 0
+            process_message_with_id(msg)
+
+        elif msg_id == 94:
+            obj = {
+                    'from'      : 'bot',
+                    'type'      : 'text',
+                    'text'      : "Please tell me what is the update",
+                    'timestamp' : time.strftime("%I:%M %p"),
+                    'idToken'   : OTP,
+                    'intensity' : intensity
+                    }
+            emit_n_print('message', obj)
 
         else:
             obj = {
@@ -408,6 +428,10 @@ def process_message_freetext(msg):
             emit_n_print('message', obj)
         else:
             process_message_freetext(msg)
+
+    elif context_id == 94:
+        msg['id'] = 'on_update_incident'
+        on_update_incident(msg)
 
 
     elif msg_text in im_corpus.corpus_options['option_incident_create']:
@@ -549,40 +573,70 @@ def on_enquire_incident(msg):
     if request.sid in Table_UserSessions\
         and Table_UserSessions[request.sid].isActive()\
         and msg.get('idToken'):
-            id_incident = msg['text']
+            Table_UserSessions[request.sid].incident_id_enquired = id_incident = msg['text']
+            incident_status = ''
             res = inc_mgr.incident_status(id_incident)
+
+            if res == 'INVALID_ID':
+                text = "Ticket number seems to be invalid. Could you please check and try again?"
+            elif res == 'SERVER_ISSUE':
+                text = "Sorry. Couldn't get the state of your incident due to some issue with server"
+            else:
+                incident_status = res
+                text = "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=incident_status)
 
             obj = {
                     'from'      : 'bot',
                     'type'      : 'text',
-                    'text'      : "The state of your ticket ({id}) is: {state}".format(id=id_incident, state=res)\
-                                    if res\
-                                    else "Sorry. Couldn't get the state of your incident due to some issue with server",
+                    'text'      : text,
                     'timestamp' : time.strftime("%I:%M %p"),
                     'idToken'   : OTP,
                     'intensity' : intensity
                     }
-            obj2 = {
-                    'from'      : 'bot',
-                    'type'      : 'prompt-action',
-                    'text'      : "Can I help you with anything else?",
-                    'timestamp' : time.strftime("%I:%M %p"),
-                    'idToken'   : OTP,
-                    'intensity' : intensity,
-                    'options': [
-                                  {
-                                      'id': 91,
-                                      'name': 'No'
-                                  },
-                                  {
-                                      'id': 92,
-                                      'name': 'Yes'
-                                  }
-                                ]
-                    }
-
             emit_n_print('message', obj)
-            emit_n_print('message', obj2)
+
+            if incident_status and not inc_mgr.is_incident_resolved(incident_status):
+                obj2 = {
+                        'from'      : 'bot',
+                        'type'      : 'prompt-action',
+                        'text'      : "Do you want to update anything on this ticket (%s)?"%id_incident,
+                        'timestamp' : time.strftime("%I:%M %p"),
+                        'idToken'   : OTP,
+                        'intensity' : intensity,
+                        'options': [
+                                      {
+                                          'id': 93,
+                                          'name': 'No'
+                                      },
+                                      {
+                                          'id': 94,
+                                          'name': 'Yes'
+                                      }
+                                    ]
+                        }
+                emit_n_print('message', obj2)
+
+            else:
+                obj2 = {
+                        'from'      : 'bot',
+                        'type'      : 'prompt-action',
+                        'text'      : "Can I help you with anything else?",
+                        'timestamp' : time.strftime("%I:%M %p"),
+                        'idToken'   : OTP,
+                        'intensity' : intensity,
+                        'options': [
+                                      {
+                                          'id': 91,
+                                          'name': 'No'
+                                      },
+                                      {
+                                          'id': 92,
+                                          'name': 'Yes'
+                                      }
+                                    ]
+                        }
+
+                emit_n_print('message', obj2)
 
     else:
         Table_UserSessions[request.sid].msg_waiting_for_login = msg
@@ -603,6 +657,61 @@ def on_enquire_incident(msg):
               }
 
         emit_n_print('message', obj)
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+def on_update_incident(msg):
+    Table_UserSessions[request.sid].context_id = msg['id']
+    OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
+    intensity = Table_UserSessions[request.sid].intensity
+
+    if request.sid in Table_UserSessions\
+        and Table_UserSessions[request.sid].isActive()\
+        and msg.get('idToken'):
+            id_incident = Table_UserSessions[request.sid].incident_id_enquired
+            update_text = msg['text']
+            res = inc_mgr.incident_update(id_incident, update_text)
+
+            if res == 'SUCCESS':
+                obj = {
+                        'from'      : 'bot',
+                        'type'      : 'text',
+                        'text'      : "Your incident (%s) is updated"%id_incident,
+                        'timestamp' : time.strftime("%I:%M %p"),
+                        'idToken'   : OTP,
+                        'intensity' : intensity
+                        }
+            else:
+                obj = {
+                        'from'      : 'bot',
+                        'type'      : 'text',
+                        'text'      : "Your incident {incident} could not be updated due to following error: {err}".format(incident=id_incident, err=res),
+                        'timestamp' : time.strftime("%I:%M %p"),
+                        'idToken'   : OTP,
+                        'intensity' : intensity
+                        }
+
+            emit_n_print('message', obj)
+
+            obj2 = {
+                    'from'      : 'bot',
+                    'type'      : 'prompt-action',
+                    'text'      : "Can I help you with anything else?",
+                    'timestamp' : time.strftime("%I:%M %p"),
+                    'idToken'   : OTP,
+                    'intensity' : intensity,
+                    'options': [
+                                  {
+                                      'id': 91,
+                                      'name': 'No'
+                                  },
+                                  {
+                                      'id': 92,
+                                      'name': 'Yes'
+                                  }
+                                ]
+                    }
+            emit_n_print('message', obj2)
 
 
 #-----------------------------------------------------------------------------------------------------------------------

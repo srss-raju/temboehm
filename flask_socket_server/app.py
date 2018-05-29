@@ -15,6 +15,7 @@ import im_incident_manager
 
 import im_corpus
 import sentiment
+import requests
 
 
 # Read the config file
@@ -739,4 +740,16 @@ def make_obj(metadata, data, msg_id):
     d.update(make_options(data, msg_id))
 
     return d
+
+#-----------------------------------------------------------------------------------------------------------------------
+@app.route("/search")
+def search():
+    print(request.args['searchtext'])
+    searchtext = request.args['searchtext']
+    url = 'http://www.mocky.io/v2/5b0bb6563300002b00b3fd05'
+    print(url)
+    head = {"text":searchtext,"Content-type": "application/x-www-form-urlencoded"}
+    response = requests.get(url,headers=head)
+    return str(response.json())
+
 

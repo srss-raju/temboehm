@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request
+from flask import Flask, request, jsonify, session, app
 from flask_socketio import SocketIO, send, emit
 from flask_cors import CORS
+from datetime import timedelta
+
 
 import sys
 import time
@@ -16,6 +18,7 @@ import im_incident_manager
 import im_corpus
 import sentiment
 import requests
+
 
 
 # Read the config file
@@ -56,7 +59,11 @@ else:
 # Start flask server with CrossOriginResourceSharing and Socket capability
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app)
+params = {
+    'ping_timeout': 100000,
+    'ping_interval': 5
+}
+socketio = SocketIO(app, logger=True, engineio_logger=True, **params)
 
 
 class UserSession:
@@ -312,6 +319,7 @@ def process_message(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message_with_id(msg):
+    print('with Id.......')
     msg_id = msg['id']
     Table_UserSessions[request.sid].context_id = msg_id
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
@@ -392,6 +400,7 @@ def process_message_with_id(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def process_message_freetext(msg):
+    print('noooooooooo ddddddddddddddddddddddddddd')
     msg_text = msg['text'].strip().lower()
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
 
@@ -404,7 +413,7 @@ def process_message_freetext(msg):
     # Get the Context-Id
     context_id = Table_UserSessions[request.sid].context_id
     Table_UserSessions[request.sid].context_id = None
-
+    
     if context_id in [1, 4]:
         msg['id'] = 'on_create_incident'
         on_create_incident(msg)
@@ -433,6 +442,9 @@ def process_message_freetext(msg):
     elif context_id == 94:
         msg['id'] = 'on_update_incident'
         on_update_incident(msg)
+
+    elif msg['text'] == "Search":
+        search(msg)
 
 
     elif msg_text in im_corpus.corpus_options['option_incident_create']:
@@ -567,6 +579,7 @@ def on_create_incident(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def on_enquire_incident(msg):
+    
     Table_UserSessions[request.sid].context_id = msg['id']
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
     intensity = Table_UserSessions[request.sid].intensity
@@ -662,6 +675,7 @@ def on_enquire_incident(msg):
 
 #-----------------------------------------------------------------------------------------------------------------------
 def on_update_incident(msg):
+
     Table_UserSessions[request.sid].context_id = msg['id']
     OTP = Table_UserSessions[request.sid].otp if Table_UserSessions.get(request.sid) and msg.get('idToken') else None
     intensity = Table_UserSessions[request.sid].intensity
@@ -741,15 +755,54 @@ def make_obj(metadata, data, msg_id):
 
     return d
 
+
 #-----------------------------------------------------------------------------------------------------------------------
-@app.route("/search")
-def search():
-    print(request.args['searchtext'])
-    searchtext = request.args['searchtext']
-    url = 'http://www.mocky.io/v2/5b0bb6563300002b00b3fd05'
-    print(url)
-    head = {"text":searchtext,"Content-type": "application/x-www-form-urlencoded"}
-    response = requests.get(url,headers=head)
-    return str(response.json())
+@app.before_request
+def make_session_permanent():
+    session.permanent = True
+    app.permanent_session_lifetime = timedelta(minutes=5)
+
+#-----------------------------------------------------------------------------------------------------------------------
+
+def search(msg):
+    idandtitle = ""
+    needtool = ""
+    eof = "Y"
+    
+    searchtext = msg.get('searchtext').encode('ascii', 'ignore')
+    isfirsttime = msg.get('is_first_time').encode('ascii', 'ignore')
+    url = 'http://192.168.204.13:5000/search_kr'
+    print('searchtext -->>> ', searchtext)
+    head = {"text":searchtext, "is_first_time":isfirsttime, "Content-type": "application/x-www-form-urlencoded"}
+    response = requests.post(url,headers=head)
+    print('Response========== >>>',response.json())
+    for topic in response.json()['response']['topics']:
+        for incident in topic['incidents']:
+            idandtitle = idandtitle + incident['id'] + "-" +incident['title'] + "-" +incident['solution'] + "###"
+
+    needtool = response.json()['response']['need_tool']
+    print('needtool =========>>>',needtool)
+    if needtool == "Y":
+        idandtitle = "Do you have any tool information, if yes can you please provide (yes/no) ?"
+        eof = "N"
+    else:
+        if len(response.json()['response']['topics']) == 0:
+            idandtitle = "No results found for entered text"
+       
+    obj = {
+            'from'      : 'bot',
+            'type'      : 'text',
+            'text'      : idandtitle,
+            'timestamp' : time.strftime("%I:%M %p"),
+            'idToken'   : '',
+            'intensity' : '',
+            'searchtext': searchtext,
+            'need_tool' : needtool,
+            'id'        : 5,
+            'eof'       : eof
+            }
+
+    emit_n_print('message', obj)
+    
 
 

@@ -57,7 +57,10 @@ else:
 
 
 # Start flask server with CrossOriginResourceSharing and Socket capability
+SESSION_TYPE = 'memcache'
 app = Flask(__name__)
+app.secret_key = "super secret key"
+
 CORS(app)
 params = {
     'ping_timeout': 100000,
@@ -446,6 +449,9 @@ def process_message_freetext(msg):
     elif msg['text'] == "Search":
         search(msg)
 
+    elif msg['text'] == "ESearch":
+        esearch(msg)
+
 
     elif msg_text in im_corpus.corpus_options['option_incident_create']:
         msg['id'] = 1
@@ -768,17 +774,21 @@ def search(msg):
     idandtitle = ""
     needtool = ""
     eof = "Y"
+    responsetype = "text"
+    obj2 = ""
     
     searchtext = msg.get('searchtext').encode('ascii', 'ignore')
     isfirsttime = msg.get('is_first_time').encode('ascii', 'ignore')
-    url = 'http://192.168.204.13:5000/search_kr'
+    url = 'http://192.168.204.13:3001/search_kr'
     print('searchtext -->>> ', searchtext)
     head = {"text":searchtext, "is_first_time":isfirsttime, "Content-type": "application/x-www-form-urlencoded"}
     response = requests.post(url,headers=head)
     print('Response========== >>>',response.json())
     for topic in response.json()['response']['topics']:
-        for incident in topic['incidents']:
-            idandtitle = idandtitle + incident['id'] + "-" +incident['title'] + "-" +incident['solution'] + "###"
+        for service in topic['affective_service_captured']:
+            for incident in service['incidents']:
+                responsetype = "list"
+                idandtitle = idandtitle + incident['id'] + "-" +incident['title'] + "-" +incident['solution'] + "###"
 
     needtool = response.json()['response']['need_tool']
     print('needtool =========>>>',needtool)
@@ -791,7 +801,7 @@ def search(msg):
        
     obj = {
             'from'      : 'bot',
-            'type'      : 'text',
+            'type'      : responsetype,
             'text'      : idandtitle,
             'timestamp' : time.strftime("%I:%M %p"),
             'idToken'   : '',
@@ -801,8 +811,107 @@ def search(msg):
             'id'        : 5,
             'eof'       : eof
             }
+    if eof == "Y":
+        obj2 = {
+                'from'      : 'bot',
+                'type'      : 'prompt-action',
+                'text'      : "Can I help you with anything else?",
+                'timestamp' : time.strftime("%I:%M %p"),
+                'idToken'   : '',
+                'intensity' : '',
+                'options': [
+                              {
+                                  'id': 91,
+                                  'name': 'No'
+                              },
+                              {
+                                  'id': 92,
+                                  'name': 'Yes'
+                              }
+                            ]
+                }
 
     emit_n_print('message', obj)
+    emit_n_print('message', obj2)
     
+#-----------------------------------------------------------------------------------------------------------------------
+
+def esearch(msg):
+    idandtitle = ""
+    responsetype = "text"
+    searchtext = msg.get('searchtext').encode('ascii', 'ignore')
+
+    
+    url = 'http://192.168.204.13:9200/_search?q=title:'+searchtext
+    head= {"Content-type": "application/x-www-form-urlencoded"}
+    response = requests.get(url,headers=head)
+    idandtitle = ""
+    for record in response.json()['hits']['hits']:
+        ticket = record.get('_source')
+        idandtitle = idandtitle + ticket['id'] + "-" +ticket['title'] + "-" +ticket['solution'] + "###"
+      
+    obj = {
+            'from'      : 'bot',
+            'type'      : responsetype,
+            'text'      : idandtitle,
+            'timestamp' : time.strftime("%I:%M %p"),
+            'idToken'   : '',
+            'intensity' : '',
+            'searchtext': searchtext,
+            'id'        : 6
+            }
+
+    emit_n_print('message', obj)
+
+
+#-----------------------------------------------------------------------------------------------------------------------
+@app.route('/elasticsearch')
+def elasticsearch():
+    print(request.args['searchtext'])
+    searchtext = request.args['searchtext']
+    resultbegin = "["
+    resultend = "]"
+    result = []
+    numincidents = 0
+    
+    obj = {
+            'size' : 0,
+            'aggs' : {
+                'group_by_affective_service_captured'   : {
+                    'terms' :{
+                        'field' : searchtext 
+                        }
+                    }
+                }                  
+            }
+    data_json = json.dumps(obj)
+    url = 'http://192.168.204.13:9200/ims/_search?size=50&q=title:'+searchtext
+    head= {"Content-type": "application/json"}
+    response = requests.get(url,data=data_json,headers=head)
+    for record in response.json()['hits']['hits']:
+        ticket = record.get('_source')
+        d = {}
+        d=ticket
+        result.append(d)
+        print(result)
+
+    obj2 = {
+            'response' : {
+                'need_tool' : 'N',
+                'text' : searchtext,
+                'topics'   : [
+                        {
+                        'topic' : '1', 
+                        'affective_service_captured' : [{
+                            'num_incidents': numincidents,
+                            'incidents' : result
+                                }
+                            ] 
+                        }
+                    ]
+                }                  
+            }
+
+    return jsonify(obj2)
 
 
